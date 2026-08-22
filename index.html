@@ -34,16 +34,6 @@
 html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:var(--system-font); -webkit-font-smoothing:antialiased; }
 #app{ position:fixed; inset:0; background:var(--bg); display:flex; flex-direction:column; overflow:hidden; }
 
-/* status bar (fake) */
-.statusbar{
-  padding-top:var(--safe-top);
-  display:flex; align-items:center; justify-content:space-between;
-  padding-left:22px; padding-right:18px; height:calc(var(--safe-top) + 30px);
-  background:var(--bg); position:relative; z-index:20; flex-shrink:0;
-}
-.statusbar .time{ font-size:15px; font-weight:600; color:var(--label); }
-.statusbar .icons{ display:flex; align-items:center; gap:5px; }
-
 #screens{ position:relative; flex:1; overflow:hidden; }
 
 /* ---------- Screen stack ---------- */
@@ -57,7 +47,7 @@ html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:
 .screen.dragging{ transition:none; }
 
 /* ---------- Nav bar ---------- */
-.navbar{ background:var(--bg); flex-shrink:0; position:relative; z-index:5; }
+.navbar{ background:var(--bg); flex-shrink:0; position:relative; z-index:5; padding-top:var(--safe-top); }
 .navbar-row{ height:var(--nav-h); display:flex; align-items:center; justify-content:space-between; padding:0 14px; position:relative; }
 .pill-btn{
   background:var(--bg-elevated); border:none; color:var(--label); font-size:15px; font-weight:500;
@@ -82,11 +72,6 @@ html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:
 .profile-banner .pname{ font-size:15px; font-weight:600; color:var(--label); }
 .profile-banner .psub{ font-size:13px; color:var(--label-3); margin-top:1px; }
 .profile-banner svg{ opacity:0.3; flex-shrink:0; }
-
-.focus-banner{ display:flex; align-items:center; justify-content:space-between; padding:0 16px 12px; }
-.focus-banner .fleft{ display:flex; align-items:center; gap:6px; font-size:14px; color:var(--purple); font-weight:500; }
-.focus-banner .foff{ background:rgba(94,92,230,0.22); color:#a7a5ff; font-size:13px; font-weight:600; padding:5px 12px; border-radius:12px; border:none; }
-.focus-banner.hidden{ display:none; }
 
 .search-wrap{ padding:0 12px 8px; flex-shrink:0; }
 .search-box{ background:var(--bg-elevated); border-radius:11px; height:36px; display:flex; align-items:center; gap:6px; padding:0 10px; }
@@ -202,15 +187,6 @@ html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:
 <body>
 
 <div id="app">
-  <div class="statusbar">
-    <div class="time" id="clock">9:41</div>
-    <div class="icons">
-      <svg width="18" height="12" viewBox="0 0 18 12" fill="none"><rect x="0" y="7" width="3" height="5" rx="0.7" fill="#fff"/><rect x="4.5" y="5" width="3" height="7" rx="0.7" fill="#fff"/><rect x="9" y="3" width="3" height="9" rx="0.7" fill="#fff"/><rect x="13.5" y="0.5" width="3" height="11.5" rx="0.7" fill="#fff" fill-opacity="0.4"/></svg>
-      <svg width="16" height="12" viewBox="0 0 16 12" fill="none"><path d="M8 10.2a1 1 0 100-2 1 1 0 000 2z" fill="#fff"/><path d="M4.7 7a4.7 4.7 0 016.6 0" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/><path d="M2.2 4.4a8.2 8.2 0 0111.6 0" stroke="#fff" stroke-width="1.3" stroke-linecap="round" opacity="0.6"/></svg>
-      <svg width="25" height="13" viewBox="0 0 25 13" fill="none"><rect x="0.75" y="0.75" width="20" height="11.5" rx="3" stroke="#fff" stroke-opacity="0.5"/><rect x="2.2" y="2.2" width="14.5" height="8.6" rx="1.8" fill="#fff"/><rect x="21.5" y="4" width="1.8" height="5" rx="0.9" fill="#fff" fill-opacity="0.5"/></svg>
-    </div>
-  </div>
-
   <div id="screens">
   <!-- ===================== HOME SCREEN ===================== -->
   <div class="screen base" id="screen-home">
@@ -230,13 +206,6 @@ html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:
           <div class="psub">Share Your Name and Photo</div>
         </div>
         <svg width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="#fff" stroke-opacity="0.3" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </div>
-      <div class="focus-banner" id="focus-banner">
-        <div class="fleft">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M21 12.8A9 9 0 1111.2 3 7 7 0 0021 12.8z" fill="#7d7aff"/></svg>
-          Filtered by Focus
-        </div>
-        <button class="foff" id="btn-focus-off">Turn Off</button>
       </div>
       <div class="search-wrap">
         <div class="search-box">
@@ -344,6 +313,7 @@ function seedData(){
     { id:"heemizz", name:"heemizz01@gmail.com", isSMS:false, silhouette:true },
     { id:"peppa", name:"Peppa Pig 🐽", isSMS:false, initial:true },
     { id:"joeliyn", name:"Joeliyn Nesarajah", isSMS:false, initial:true },
+    { id:"nishta", name:"Nishta", isSMS:false, initial:true },
   ];
 
   const threads = [
@@ -427,11 +397,38 @@ function seedData(){
       { from:"them", text:"hey! long time, how's the internship going", t: daysAgo(66,14,0) },
       { from:"me", text:"going well! busy but good, how's things with you", t: daysAgo(66,15,10), status:"read" },
     ]},
+    { id:"t-nishta", contactId:"nishta", unread:false, messages:[
+      { from:"them", text:"girl WAIT did you hear about them two", t: daysAgo(2,9,14) },
+      { from:"me", text:"omg what happened", t: daysAgo(2,9,41), status:"read" },
+      { from:"them", text:"so apparently they broke up like a week ago and nobody said anything", t: daysAgo(2,10,2) },
+      { from:"them", text:"found out cus my flatmate saw her crying in the library", t: daysAgo(2,10,3) },
+      { from:"me", text:"NO WAY i saw them together on saturday??", t: daysAgo(2,10,20), status:"read" },
+      { from:"them", text:"yeah that's the messed up part, they were still doing the whole couple thing in public", t: daysAgo(2,11,5) },
+      { from:"me", text:"the audacity omg", t: daysAgo(2,12,47), status:"read", tapback:"😂" },
+      { from:"them", text:"there's more but i'll tell u in person lol", t: daysAgo(2,13,15) },
+      { from:"me", text:"TELL ME NOW 😭", t: daysAgo(2,14,2), status:"read" },
+      { from:"them", text:"later i promise, i'm in a lecture", t: daysAgo(2,14,50) },
+      { from:"me", text:"ok i'm free now spill", t: daysAgo(1,9,30), status:"read" },
+      { from:"them", text:"so basically she was cheating the whole time", t: daysAgo(1,9,58) },
+      { from:"me", text:"SHUT UP", t: daysAgo(1,10,12), status:"read" },
+      { from:"them", text:"i know, i couldn't believe it either", t: daysAgo(1,10,40) },
+      { from:"me", text:"is that why she looked so awkward at the thing on friday", t: daysAgo(1,11,22), status:"read" },
+      { from:"them", text:"yes exactly that's why", t: daysAgo(1,12,5) },
+      { from:"them", text:"don't say anything tho i wasn't even supposed to know", t: daysAgo(1,13,40) },
+      { from:"me", text:"obviously my lips are sealed 🤐", t: daysAgo(1,14,11), status:"read" },
+      { from:"them", text:"update: they're back together 💀", t: daysAgo(0,9,20) },
+      { from:"me", text:"WHAT. after everything?", t: daysAgo(0,9,45), status:"read" },
+      { from:"them", text:"apparently they 'talked it through'", t: daysAgo(0,10,30) },
+      { from:"me", text:"the way this whole uni is one big soap opera", t: daysAgo(0,11,12), status:"read" },
+      { from:"them", text:"genuinely couldn't write this", t: daysAgo(0,12,0) },
+      { from:"me", text:"same time tomorrow for the next episode", t: daysAgo(0,13,35), status:"read" },
+      { from:"them", text:"😭😭 stay tuned", t: daysAgo(0,14,20) },
+    ]},
   ];
   return { contacts, threads };
 }
 
-const STORE_KEY = "imsg_clone_state_v2";
+const STORE_KEY = "imsg_clone_state_v3";
 function loadState(){
   try{ const raw = localStorage.getItem(STORE_KEY); if(raw) return JSON.parse(raw); }catch(e){}
   const seed = seedData();
@@ -441,7 +438,6 @@ function loadState(){
 function saveState(){ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
 let state = loadState();
 let activeThreadId = null;
-let focusOn = true;
 
 /* ---------------- helpers ---------------- */
 function getContact(id){ return state.contacts.find(c=>c.id===id); }
@@ -539,11 +535,6 @@ function renderThreadList(filter){
   });
 }
 document.getElementById("search-input").addEventListener("input", e=>renderThreadList(e.target.value));
-
-document.getElementById("btn-focus-off").addEventListener("click", ()=>{
-  focusOn = false;
-  document.getElementById("focus-banner").classList.add("hidden");
-});
 
 /* ---------------- chat screen ---------------- */
 const chatScroll = document.getElementById("chat-scroll");
@@ -895,13 +886,6 @@ function renderNewContactList(q){
     newContactList.appendChild(row);
   }
 }
-
-/* ---------------- clock ---------------- */
-function tickClock(){
-  const d = new Date();
-  document.getElementById("clock").textContent = pad(d.getHours())+":"+pad(d.getMinutes());
-}
-tickClock(); setInterval(tickClock, 15000);
 
 /* ---------------- init ---------------- */
 renderThreadList("");
