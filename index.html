@@ -32,7 +32,7 @@
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:var(--system-font); -webkit-font-smoothing:antialiased; }
-#app{ position:fixed; inset:0; background:var(--bg); display:flex; flex-direction:column; overflow:hidden; }
+#app{ position:fixed; inset:0; height:var(--app-height, 100%); background:var(--bg); display:flex; flex-direction:column; overflow:hidden; }
 
 #screens{ position:relative; flex:1; overflow:hidden; }
 
@@ -281,6 +281,17 @@ html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:
 (function(){
 "use strict";
 
+/* Fix iOS Safari's unreliable viewport height (classic 100vh bug) so the
+   app always fills the real visible screen with no dead space at the
+   bottom, whether running in a tab or added to the Home Screen. */
+function setAppHeight(){
+  document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
+}
+setAppHeight();
+window.addEventListener('resize', setAppHeight);
+window.addEventListener('orientationchange', ()=>setTimeout(setAppHeight, 300));
+if(window.visualViewport){ window.visualViewport.addEventListener('resize', setAppHeight); }
+
 const SILHOUETTE = `<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8.5" r="4" fill="#fff"/><path d="M4 20c0-3.9 3.6-7 8-7s8 3.1 8 7" fill="#fff"/></svg>`;
 
 const AVATAR_PALETTE = [
@@ -314,6 +325,8 @@ function seedData(){
     { id:"peppa", name:"Peppa Pig 🐽", isSMS:false, initial:true },
     { id:"joeliyn", name:"Joeliyn Nesarajah", isSMS:false, initial:true },
     { id:"nishta", name:"Nishta", isSMS:false, initial:true },
+    { id:"lucas", name:"Lucas", isSMS:false, initial:true },
+    { id:"sumanth", name:"Summanth", isSMS:false, initial:true },
   ];
 
   const threads = [
@@ -424,11 +437,54 @@ function seedData(){
       { from:"me", text:"same time tomorrow for the next episode", t: daysAgo(0,13,35), status:"read" },
       { from:"them", text:"😭😭 stay tuned", t: daysAgo(0,14,20) },
     ]},
+    { id:"t-lucas", contactId:"lucas", unread:false, messages:[
+      { from:"them", text:"did you catch the match last night", t: daysAgo(2,19,10) },
+      { from:"me", text:"yessir what a game", t: daysAgo(2,19,45), status:"read" },
+      { from:"them", text:"that finish in the 89th min was insane", t: daysAgo(2,19,47) },
+      { from:"me", text:"i was literally screaming at my screen", t: daysAgo(2,20,2), status:"read" },
+      { from:"them", text:"the keeper should've saved that easily tho", t: daysAgo(2,20,30) },
+      { from:"me", text:"nah he was wrongfooted, not his fault", t: daysAgo(2,20,44), status:"read" },
+      { from:"them", text:"agree to disagree lol", t: daysAgo(2,21,5), tapback:"😂" },
+      { from:"them", text:"weekend fixture looks tough tho", t: daysAgo(1,12,20) },
+      { from:"me", text:"yeah that's a proper six pointer", t: daysAgo(1,13,4), status:"read" },
+      { from:"them", text:"who you got for that one", t: daysAgo(1,13,6) },
+      { from:"me", text:"gotta go with the home side, their form's been mad", t: daysAgo(1,14,15), status:"read" },
+      { from:"them", text:"nah i think it ends in a draw ngl", t: daysAgo(1,15,0) },
+      { from:"me", text:"we'll see 👀", t: daysAgo(1,15,10), status:"read" },
+      { from:"them", text:"you watching it at the pub or?", t: daysAgo(0,10,12) },
+      { from:"me", text:"depends if i finish this deadline in time", t: daysAgo(0,10,40), status:"read" },
+      { from:"them", text:"bro come on it's a cup game", t: daysAgo(0,10,42) },
+      { from:"me", text:"fine you've convinced me, i'm coming", t: daysAgo(0,11,30), status:"read" },
+      { from:"them", text:"knew i'd win that argument", t: daysAgo(0,11,32) },
+      { from:"them", text:"kickoff's 3pm btw don't be late", t: daysAgo(0,16,5) },
+      { from:"me", text:"i'm never late for football, only lectures", t: daysAgo(0,16,20), status:"read" },
+    ]},
+    { id:"t-sumanth", contactId:"sumanth", unread:false, messages:[
+      { from:"them", text:"you in for the hackathon this weekend?", t: daysAgo(2,10,5) },
+      { from:"me", text:"yeah for sure, what team we thinking", t: daysAgo(2,10,30), status:"read" },
+      { from:"them", text:"me you and maybe one more if we can find someone decent", t: daysAgo(2,10,33) },
+      { from:"me", text:"i'll ask around, what track we doing", t: daysAgo(2,11,50), status:"read" },
+      { from:"them", text:"fintech track has the best prize tbh", t: daysAgo(2,12,10) },
+      { from:"me", text:"bet, fintech it is", t: daysAgo(2,12,15), status:"read" },
+      { from:"them", text:"got any ideas or are we winging it", t: daysAgo(1,9,40) },
+      { from:"me", text:"was thinking something around split-payment tracking for group expenses", t: daysAgo(1,10,5), status:"read" },
+      { from:"them", text:"oh that's actually solid, easy to demo too", t: daysAgo(1,10,20) },
+      { from:"me", text:"exactly, judges like seeing a working demo not just slides", t: daysAgo(1,10,25), status:"read" },
+      { from:"them", text:"we need a team name lol", t: daysAgo(1,14,0) },
+      { from:"me", text:"stack overflow and out 💀", t: daysAgo(1,14,10), status:"read", tapback:"😂" },
+      { from:"them", text:"i'm actually considering it ngl", t: daysAgo(1,14,12) },
+      { from:"them", text:"registration closes tonight, you signed up yet?", t: daysAgo(0,9,0) },
+      { from:"me", text:"just did, added you and the team name lol", t: daysAgo(0,9,25), status:"read" },
+      { from:"them", text:"legend, what time we meeting sat morning", t: daysAgo(0,9,30) },
+      { from:"me", text:"9am start, need the full day for this", t: daysAgo(0,9,40), status:"read" },
+      { from:"them", text:"bringing snacks, don't @ me", t: daysAgo(0,13,15) },
+      { from:"me", text:"the real MVP of every hackathon", t: daysAgo(0,13,20), status:"read" },
+    ]},
   ];
   return { contacts, threads };
 }
 
-const STORE_KEY = "imsg_clone_state_v3";
+const STORE_KEY = "imsg_clone_state_v4";
 function loadState(){
   try{ const raw = localStorage.getItem(STORE_KEY); if(raw) return JSON.parse(raw); }catch(e){}
   const seed = seedData();
