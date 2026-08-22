@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Messages</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Messages">
+<meta name="theme-color" content="#000000">
+<style>
+:root{
+  --blue:#0a84ff;
+  --blue-2:#0060df;
+  --green:#31d454;
+  --green-2:#1aa63c;
+  --bg:#000000;
+  --bg-elevated:#1c1c1e;
+  --bg-elevated-2:#2c2c2e;
+  --gray-bubble:#26252a;
+  --sep:rgba(255,255,255,0.14);
+  --label:#ffffff;
+  --label-2:rgba(235,235,245,0.6);
+  --label-3:rgba(235,235,245,0.34);
+  --purple:#5e5ce6;
+  --nav-h:44px;
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+  --system-font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:var(--system-font); -webkit-font-smoothing:antialiased; }
+#app{ position:fixed; inset:0; background:var(--bg); display:flex; flex-direction:column; overflow:hidden; }
+
+/* status bar (fake) */
+.statusbar{
+  padding-top:var(--safe-top);
+  display:flex; align-items:center; justify-content:space-between;
+  padding-left:22px; padding-right:18px; height:calc(var(--safe-top) + 30px);
+  background:var(--bg); position:relative; z-index:20; flex-shrink:0;
+}
+.statusbar .time{ font-size:15px; font-weight:600; color:var(--label); }
+.statusbar .icons{ display:flex; align-items:center; gap:5px; }
+
+#screens{ position:relative; flex:1; overflow:hidden; }
+
+/* ---------- Screen stack ---------- */
+.screen{
+  position:absolute; inset:0; display:flex; flex-direction:column; background:var(--bg);
+  transform:translate3d(100%,0,0); transition:transform .32s cubic-bezier(.32,.72,0,1);
+  will-change:transform; z-index:2;
+}
+.screen.active{ transform:translate3d(0,0,0); z-index:3; }
+.screen.base{ transform:translate3d(0,0,0); z-index:1; }
+.screen.dragging{ transition:none; }
+
+/* ---------- Nav bar ---------- */
+.navbar{ background:var(--bg); flex-shrink:0; position:relative; z-index:5; }
+.navbar-row{ height:var(--nav-h); display:flex; align-items:center; justify-content:space-between; padding:0 14px; position:relative; }
+.pill-btn{
+  background:var(--bg-elevated); border:none; color:var(--label); font-size:15px; font-weight:500;
+  padding:7px 14px; border-radius:16px; cursor:pointer; font-family:var(--system-font);
+}
+.pill-btn:active{ opacity:0.5; }
+.pill-btn.blue-text{ color:var(--blue); }
+.icon-circle{
+  width:34px;height:34px;border-radius:50%;background:var(--bg-elevated);border:none;
+  display:flex;align-items:center;justify-content:center; flex-shrink:0;
+}
+.icon-circle:active{ opacity:0.5; }
+.nav-title{ position:absolute; left:0; right:0; text-align:center; font-size:17px; font-weight:600; color:var(--label); pointer-events:none; }
+.large-title{ font-size:34px; font-weight:800; letter-spacing:-0.02em; padding:6px 16px 10px; color:var(--label); }
+
+.profile-banner{
+  margin:0 16px 14px; background:var(--bg-elevated); border-radius:16px;
+  display:flex; align-items:center; gap:12px; padding:10px 14px;
+}
+.profile-banner .pav{ width:44px;height:44px;border-radius:50%; overflow:hidden; flex-shrink:0; background:linear-gradient(160deg,#6b5b4a,#2c221a); display:flex;align-items:center;justify-content:center; color:#fff; font-weight:700; }
+.profile-banner .ptxt{ flex:1; }
+.profile-banner .pname{ font-size:15px; font-weight:600; color:var(--label); }
+.profile-banner .psub{ font-size:13px; color:var(--label-3); margin-top:1px; }
+.profile-banner svg{ opacity:0.3; flex-shrink:0; }
+
+.focus-banner{ display:flex; align-items:center; justify-content:space-between; padding:0 16px 12px; }
+.focus-banner .fleft{ display:flex; align-items:center; gap:6px; font-size:14px; color:var(--purple); font-weight:500; }
+.focus-banner .foff{ background:rgba(94,92,230,0.22); color:#a7a5ff; font-size:13px; font-weight:600; padding:5px 12px; border-radius:12px; border:none; }
+.focus-banner.hidden{ display:none; }
+
+.search-wrap{ padding:0 12px 8px; flex-shrink:0; }
+.search-box{ background:var(--bg-elevated); border-radius:11px; height:36px; display:flex; align-items:center; gap:6px; padding:0 10px; }
+.search-box svg{ flex-shrink:0; opacity:0.5; }
+.search-box input{ border:none;background:none;outline:none;font-size:16px;flex:1;color:var(--label);font-family:var(--system-font); }
+.search-box input::placeholder{ color:var(--label-3); }
+
+/* ---------- Conversation list ---------- */
+.list-scroll{ flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding-bottom:70px; }
+.thread-row{ display:flex; align-items:center; gap:12px; padding:9px 16px; position:relative; }
+.thread-row:active{ background:rgba(255,255,255,0.06); }
+.avatar{ width:52px;height:52px;border-radius:50%; display:flex;align-items:center;justify-content:center; color:#fff;font-size:19px;font-weight:600; flex-shrink:0; background:var(--bg-elevated-2); overflow:hidden; }
+.avatar.colored{ background:linear-gradient(160deg,var(--c1),var(--c2)); }
+.avatar svg{ width:60%; height:60%; }
+.thread-main{ flex:1;min-width:0; border-bottom:0.5px solid var(--sep); padding-bottom:10px; padding-top:2px; display:flex; flex-direction:column; gap:3px; }
+.thread-top{ display:flex; align-items:baseline; justify-content:space-between; gap:8px;}
+.thread-name{ font-size:16.5px; font-weight:600; color:var(--label); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.thread-time{ font-size:15px; color:var(--label-3); flex-shrink:0; }
+.thread-preview{ font-size:14.5px; color:var(--label-2); display:flex; align-items:center; gap:5px; }
+.thread-preview .txt{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
+.unread-dot{ width:9px;height:9px;border-radius:50%;background:var(--blue); flex-shrink:0; }
+.chev{ opacity:0.3; flex-shrink:0; }
+.empty-state{ text-align:center; color:var(--label-3); font-size:15px; margin-top:60px; padding:0 30px; line-height:1.5; }
+.reset-link{ text-align:center; padding:22px 0 20px; font-size:13px; color:var(--label-3); }
+.reset-link span{ color:var(--blue); }
+.reset-link span:active{ opacity:0.4; }
+
+/* ---------- Chat screen ---------- */
+.chat-header{ display:flex; flex-direction:column; align-items:center; padding:2px 0 10px; }
+.chat-avatar{ width:38px;height:38px;border-radius:50%; display:flex;align-items:center;justify-content:center; color:#fff;font-size:14px;font-weight:600; background:var(--bg-elevated-2); margin-bottom:4px; overflow:hidden; }
+.chat-avatar.colored{ background:linear-gradient(160deg,var(--c1),var(--c2)); }
+.chat-avatar svg{ width:60%; height:60%; }
+.chat-pill{ background:var(--bg-elevated); border-radius:14px; padding:4px 12px 5px; display:flex; align-items:center; gap:3px; }
+.chat-pill-name{ font-size:15px; font-weight:600; color:var(--label); }
+.chat-sub{ font-size:12px; color:var(--label-3); text-align:center; margin-top:3px; }
+
+.chat-scroll{ flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:14px 12px 14px; display:flex; flex-direction:column; gap:3px; }
+.date-sep{ text-align:center; font-size:12.5px; color:var(--label-3); font-weight:500; margin:16px 0 10px; }
+.sys-line{ text-align:center; font-size:12px; color:var(--label-3); margin:2px 0 12px; display:flex; align-items:center; justify-content:center; gap:4px; }
+.sys-line.silenced{ color:#9b99ff; }
+.sys-line svg{ flex-shrink:0; opacity:0.8; }
+
+.msg-row{ display:flex; margin:2px 0; position:relative; touch-action:pan-y; }
+.msg-row.me{ justify-content:flex-end; }
+.msg-row.them{ justify-content:flex-start; }
+.msg-inner{ display:flex; align-items:flex-end; gap:6px; max-width:80%; transform:translateX(0); transition:transform .18s ease; }
+.msg-row.dragging .msg-inner{ transition:none; }
+.bubble-col{ display:flex; flex-direction:column; position:relative; }
+.name-tag{ font-size:11px; color:var(--label-3); margin:0 0 3px 12px; }
+
+.bubble{ padding:9px 14px; border-radius:19px; font-size:16.5px; line-height:1.3; word-wrap:break-word; white-space:pre-wrap; position:relative; animation:pop .22s cubic-bezier(.34,1.56,.64,1); }
+@keyframes pop{ from{ transform:scale(.7); opacity:0; } to{ transform:scale(1); opacity:1; } }
+.bubble.me.imsg{ background:linear-gradient(180deg,var(--blue),var(--blue-2)); color:#fff; border-bottom-right-radius:5px; }
+.bubble.me.sms{ background:linear-gradient(180deg,var(--green),var(--green-2)); color:#fff; border-bottom-right-radius:3px; }
+.bubble.them{ background:var(--gray-bubble); color:#fff; border-bottom-left-radius:5px; }
+.msg-row.grouped-next .bubble{ border-bottom-right-radius:19px; border-bottom-left-radius:19px; }
+
+.bubble.img{ padding:3px; overflow:hidden; }
+.bubble.img img{ display:block; max-width:230px; max-height:290px; border-radius:16px; }
+
+.link-card{ background:var(--gray-bubble); border-radius:16px; padding:12px 14px; display:flex; align-items:center; gap:10px; max-width:260px; color:var(--label-2); font-size:14px; }
+.link-card svg{ flex-shrink:0; opacity:0.6; }
+
+.msg-time-reveal{ font-size:11px; color:var(--label-3); white-space:nowrap; flex-shrink:0; opacity:0; width:0; overflow:hidden; transition:opacity .15s; display:flex; align-items:center; padding-bottom:4px; }
+.status-line{ font-size:11.5px; color:var(--label-3); text-align:right; margin-top:3px; margin-right:4px; }
+.status-line.read{ color:var(--label-2); }
+
+.tapback{ position:absolute; top:-16px; min-width:26px;height:26px;border-radius:13px; background:var(--bg-elevated-2); box-shadow:0 2px 6px rgba(0,0,0,0.5); display:flex;align-items:center;justify-content:center; font-size:13px; padding:0 3px; animation:pop .25s cubic-bezier(.34,1.56,.64,1); }
+.msg-row.me .tapback{ right:-4px; }
+.msg-row.them .tapback{ left:20px; }
+
+.typing-row{ display:flex; margin:6px 0; }
+.typing-bubble{ background:var(--gray-bubble); border-radius:19px; border-bottom-left-radius:5px; padding:11px 14px; display:flex; gap:4px; align-items:center; }
+.typing-bubble span{ width:7px;height:7px;border-radius:50%;background:var(--label-3); animation:bounce 1.1s infinite ease-in-out; }
+.typing-bubble span:nth-child(2){ animation-delay:.15s; }
+.typing-bubble span:nth-child(3){ animation-delay:.3s; }
+@keyframes bounce{ 0%,60%,100%{ transform:translateY(0); opacity:.4; } 30%{ transform:translateY(-4px); opacity:1; } }
+
+.tb-picker{ position:fixed; z-index:50; background:rgba(40,40,44,0.92); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border-radius:26px; padding:6px 8px; display:flex; gap:2px; box-shadow:0 8px 30px rgba(0,0,0,0.5); animation:pickerIn .18s cubic-bezier(.34,1.56,.64,1); }
+@keyframes pickerIn{ from{ transform:scale(.6); opacity:0; } to{ transform:scale(1); opacity:1; } }
+.tb-picker button{ width:38px;height:38px;border-radius:50%;border:none;background:none;font-size:21px; display:flex;align-items:center;justify-content:center; }
+.tb-picker button:active{ background:rgba(255,255,255,0.12); }
+.tb-backdrop{ position:fixed; inset:0; z-index:49; background:rgba(0,0,0,0); }
+
+/* ---------- Input bar ---------- */
+.input-bar{ display:flex; align-items:flex-end; gap:8px; padding:8px 10px; padding-bottom:calc(8px + var(--safe-bottom)); background:var(--bg); flex-shrink:0; }
+.round-btn{ width:32px;height:32px;border-radius:50%;border:none; background:none; color:var(--label-3); display:flex;align-items:center;justify-content:center; flex-shrink:0; margin-bottom:2px; }
+.round-btn:active{ opacity:0.4; }
+.input-pill{ flex:1; background:var(--bg-elevated); border-radius:18px; min-height:36px; max-height:110px; display:flex; align-items:center; padding:0 6px 0 14px; }
+.input-pill textarea{ border:none; outline:none; resize:none; width:100%; font-size:16.5px; line-height:20px; padding:8px 0; max-height:100px; font-family:var(--system-font); background:none; color:var(--label); }
+.input-pill textarea::placeholder{ color:var(--label-3); }
+.send-btn{ width:30px;height:30px;border-radius:50%;border:none; flex-shrink:0; margin:3px; background:var(--blue); color:#fff; display:flex;align-items:center;justify-content:center; transition:opacity .15s, transform .1s; }
+.send-btn.sms{ background:var(--green); }
+.send-btn[disabled]{ opacity:0; pointer-events:none; }
+.send-btn:active:not([disabled]){ transform:scale(0.88); }
+.mic-btn{ width:30px;height:30px; display:flex;align-items:center;justify-content:center; color:var(--label-3); margin:3px; flex-shrink:0; }
+
+/* ---------- New message screen ---------- */
+.to-row{ display:flex; align-items:center; gap:8px; padding:12px 16px; border-bottom:0.5px solid var(--sep); }
+.to-row label{ font-size:16px; color:var(--label-3); }
+.to-row input{ flex:1; border:none; outline:none; font-size:16px; background:none; font-family:var(--system-font); color:var(--label); }
+.contact-pick{ display:flex; align-items:center; gap:12px; padding:9px 16px; }
+.contact-pick:active{ background:rgba(255,255,255,0.06); }
+.contact-pick-info{ display:flex; flex-direction:column; }
+.contact-pick-name{ font-size:16px; color:var(--label); font-weight:500;}
+.contact-pick-sub{ font-size:13px; color:var(--label-3); }
+.section-label{ font-size:12px; color:var(--label-3); padding:16px 16px 6px; text-transform:uppercase; letter-spacing:.3px;}
+
+#fileInput{ display:none; }
+::-webkit-scrollbar{ display:none; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="statusbar">
+    <div class="time" id="clock">9:41</div>
+    <div class="icons">
+      <svg width="18" height="12" viewBox="0 0 18 12" fill="none"><rect x="0" y="7" width="3" height="5" rx="0.7" fill="#fff"/><rect x="4.5" y="5" width="3" height="7" rx="0.7" fill="#fff"/><rect x="9" y="3" width="3" height="9" rx="0.7" fill="#fff"/><rect x="13.5" y="0.5" width="3" height="11.5" rx="0.7" fill="#fff" fill-opacity="0.4"/></svg>
+      <svg width="16" height="12" viewBox="0 0 16 12" fill="none"><path d="M8 10.2a1 1 0 100-2 1 1 0 000 2z" fill="#fff"/><path d="M4.7 7a4.7 4.7 0 016.6 0" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/><path d="M2.2 4.4a8.2 8.2 0 0111.6 0" stroke="#fff" stroke-width="1.3" stroke-linecap="round" opacity="0.6"/></svg>
+      <svg width="25" height="13" viewBox="0 0 25 13" fill="none"><rect x="0.75" y="0.75" width="20" height="11.5" rx="3" stroke="#fff" stroke-opacity="0.5"/><rect x="2.2" y="2.2" width="14.5" height="8.6" rx="1.8" fill="#fff"/><rect x="21.5" y="4" width="1.8" height="5" rx="0.9" fill="#fff" fill-opacity="0.5"/></svg>
+    </div>
+  </div>
+
+  <div id="screens">
+  <!-- ===================== HOME SCREEN ===================== -->
+  <div class="screen base" id="screen-home">
+    <div class="navbar">
+      <div class="navbar-row">
+        <button class="pill-btn" id="btn-edit">Edit</button>
+        <div class="nav-title"></div>
+        <button class="icon-circle" id="btn-menu" aria-label="Options">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M3 12h18M3 18h18" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="large-title">Messages</div>
+      <div class="profile-banner" id="profile-banner">
+        <div class="pav" id="profile-av">G</div>
+        <div class="ptxt">
+          <div class="pname" id="profile-name">Gupenrakuru</div>
+          <div class="psub">Share Your Name and Photo</div>
+        </div>
+        <svg width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="#fff" stroke-opacity="0.3" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="focus-banner" id="focus-banner">
+        <div class="fleft">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M21 12.8A9 9 0 1111.2 3 7 7 0 0021 12.8z" fill="#7d7aff"/></svg>
+          Filtered by Focus
+        </div>
+        <button class="foff" id="btn-focus-off">Turn Off</button>
+      </div>
+      <div class="search-wrap">
+        <div class="search-box">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#a0a0a5" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="#a0a0a5" stroke-width="2" stroke-linecap="round"/></svg>
+          <input id="search-input" placeholder="Search" autocomplete="off">
+        </div>
+      </div>
+    </div>
+    <div class="list-scroll" id="thread-list"></div>
+  </div>
+
+  <!-- ===================== CHAT SCREEN ===================== -->
+  <div class="screen" id="screen-chat">
+    <div class="navbar">
+      <div class="navbar-row">
+        <button class="icon-circle" id="btn-back">
+          <svg width="11" height="18" viewBox="0 0 11 18" fill="none"><path d="M9.5 1 1.5 9l8 8" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="nav-title">Messages</div>
+        <button class="icon-circle" id="btn-call">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 5.5C4 4.7 4.7 4 5.5 4h2.7c.6 0 1.1.4 1.3.9l1.1 3a1.4 1.4 0 01-.4 1.6L8.8 11a13 13 0 004.2 4.2l1.5-1.4a1.4 1.4 0 011.6-.3l3 1.1c.5.2.9.7.9 1.3v2.6c0 .8-.7 1.5-1.5 1.5C10.5 20 4 13.5 4 5.5z" fill="#fff"/></svg>
+        </button>
+      </div>
+      <div class="chat-header">
+        <div class="chat-avatar" id="chat-avatar"></div>
+        <div class="chat-pill" id="chat-pill">
+          <span class="chat-pill-name" id="chat-pill-name"></span>
+          <svg width="7" height="12" viewBox="0 0 7 12" fill="none" style="margin-left:1px;"><path d="M1 1l5 5-5 5" stroke="#8e8e93" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="chat-sub" id="chat-sub"></div>
+      </div>
+    </div>
+
+    <div class="chat-scroll" id="chat-scroll"></div>
+
+    <div class="input-bar">
+      <button class="round-btn" id="btn-attach" aria-label="Attach photo">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10.5" stroke="#8e8e93" stroke-width="1.4"/><path d="M12 7v10M7 12h10" stroke="#8e8e93" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+      <div class="input-pill">
+        <textarea id="msg-input" rows="1" placeholder="iMessage"></textarea>
+      </div>
+      <button class="mic-btn" id="btn-mic">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="8" y="2" width="8" height="13" rx="4" stroke="#8e8e93" stroke-width="1.6"/><path d="M5 11a7 7 0 0014 0M12 18v3" stroke="#8e8e93" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+      <button class="send-btn" id="btn-send" disabled aria-label="Send">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 19V5M12 5l-6 6M12 5l6 6" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+    <input type="file" id="fileInput" accept="image/*">
+  </div>
+
+  <!-- ===================== NEW MESSAGE SCREEN ===================== -->
+  <div class="screen" id="screen-new">
+    <div class="navbar">
+      <div class="navbar-row">
+        <button class="pill-btn blue-text" id="btn-new-cancel">Cancel</button>
+        <div class="nav-title">New Message</div>
+        <div style="width:34px;"></div>
+      </div>
+      <div class="to-row">
+        <label>To:</label>
+        <input id="new-to-input" placeholder="Name, number, or email" autocomplete="off">
+      </div>
+    </div>
+    <div class="list-scroll" id="new-contact-list"></div>
+  </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+
+const SILHOUETTE = `<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8.5" r="4" fill="#fff"/><path d="M4 20c0-3.9 3.6-7 8-7s8 3.1 8 7" fill="#fff"/></svg>`;
+
+const AVATAR_PALETTE = [
+  ["#7ee08a","#249e46"], ["#8fd0ff","#0b64c9"], ["#ffd27e","#c97a0b"],
+  ["#ffb1c9","#c9195f"], ["#a89bff","#4b3dc9"], ["#ffb98a","#c9560f"],
+  ["#9be8d8","#0e8f70"], ["#4b4b6b","#26263f"]
+];
+function colorFor(id){ let h=0; for(const c of id) h=(h*31+c.charCodeAt(0))>>>0; return AVATAR_PALETTE[h % AVATAR_PALETTE.length]; }
+function initials(name){ return name.replace(/[^\w\s]/g,"").split(" ").filter(Boolean).slice(0,2).map(s=>s[0].toUpperCase()).join(""); }
+
+const now = Date.now();
+const H = 3600000, D = 86400000;
+function daysAgo(n, hh=12, mm=0){ const d=new Date(now); d.setDate(d.getDate()-n); d.setHours(hh,mm,0,0); return d.getTime(); }
+
+/* ========================================================================
+   SEED DATA — modeled on the user's real Messages layout: dark UI,
+   iMessage (blue) vs SMS (green) contacts, location sharing, link
+   previews. Message text mirrors their real threads; photos are generic
+   placeholders standing in for real camera-roll images.
+   ======================================================================== */
+function seedData(){
+  const contacts = [
+    { id:"amazon", name:"Amazon", isSMS:true, silhouette:true, noReply:true },
+    { id:"sufu", name:"Sufu", isSMS:false, initial:true },
+    { id:"num1", name:"+44 7537 452521", isSMS:true, silhouette:true, noReply:true },
+    { id:"num2", name:"+44 7537 452511", isSMS:true, silhouette:true, noReply:true },
+    { id:"karthi", name:"Karthi", isSMS:false, initial:true },
+    { id:"ghub", name:"Ghub", isSMS:false, initial:true, city:"Beaconsfield, England" },
+    { id:"amma", name:"Amma", isSMS:false, initial:true, city:"London, England", silenced:true },
+    { id:"heemizz", name:"heemizz01@gmail.com", isSMS:false, silhouette:true },
+    { id:"peppa", name:"Peppa Pig 🐽", isSMS:false, initial:true },
+    { id:"joeliyn", name:"Joeliyn Nesarajah", isSMS:false, initial:true },
+  ];
+
+  const threads = [
+    { id:"t-amazon", contactId:"amazon", unread:false, messages:[
+      { from:"them", text:"Payment revision needed: Please update your payment method. More details at: https://amzn.eu/d02U3D8N", t: daysAgo(0,8,59) },
+    ]},
+    { id:"t-sufu", contactId:"sufu", unread:false, messages:[
+      { from:"them", text:"how can u text and sleep", t: daysAgo(0,6,10) },
+      { from:"them", text:"that's not possible guppy", t: daysAgo(0,6,11) },
+      { from:"me", text:"I'm sleep texting", t: daysAgo(0,6,12), status:"read" },
+      { from:"them", text:"AW MANEEE", t: daysAgo(0,6,13) },
+      { from:"me", text:"Hey", t: daysAgo(0,6,14), status:"read" },
+      { from:"them", text:"hey 👋", t: daysAgo(0,6,15) },
+      { from:"them", text:"u be sleep texting agin", t: daysAgo(0,6,15)+30000 },
+      { from:"me", text:"Hey", t: daysAgo(0,6,20), status:"read", tapback:"👎" },
+      { from:"them", text:"hey", t: daysAgo(0,6,30) },
+      { from:"them", text:"i alr have", t: daysAgo(0,6,31) },
+      { from:"them", text:"fomo", t: daysAgo(0,6,31)+20000 },
+      { from:"them", text:"from when everyone does stuff at uni", t: daysAgo(0,6,32) },
+      { from:"me", text:"Awh man", t: daysAgo(0,6,36), status:"read", readAt: daysAgo(0,7,17) },
+      { from:"them", text:"bro go to sleep", t: daysAgo(0,7,17) },
+    ]},
+    { id:"t-num1", contactId:"num1", unread:false, messages:[
+      { from:"me", text:"Send this message without editing.\n(zNXvdKFx3sxX)", t: daysAgo(6,0,43), status:"delivered" },
+    ]},
+    { id:"t-num2", contactId:"num2", unread:false, messages:[
+      { from:"me", text:"Send this message without editing.\n(MTn1rkjqtlPE)", t: daysAgo(6,0,44), status:"delivered" },
+    ]},
+    { id:"t-karthi", contactId:"karthi", unread:false, messages:[
+      { from:"them", text:"what time does work for u today", t: daysAgo(45,17,50) },
+      { from:"me", text:"U wanna go in the afternoon", t: daysAgo(45,18,2), status:"read" },
+      { from:"me", image:"img1.jpg", t: daysAgo(45,18,28), status:"read" },
+      { from:"me", text:"Yo", t: daysAgo(17,17,32), status:"read", readAt: daysAgo(17,17,33) },
+      { from:"them", text:"I found you before it came lol", t: daysAgo(13,19,44) },
+    ]},
+    { id:"t-ghub", contactId:"ghub", unread:false, messages:[
+      { from:"them", text:"what am I looking at", t: daysAgo(27,20,10) },
+      { from:"me", text:"It was where I was bro", t: daysAgo(27,20,11), status:"read", readAt: daysAgo(27,20,31) },
+      { from:"them", text:"Ohh 🙌🙌🙌", t: daysAgo(27,20,32) },
+      { from:"them", image:"img2.jpg", t: daysAgo(19,16,0) },
+      { from:"me", text:"There's a bunch of Sarees shops it swr", t: daysAgo(19,16,5), status:"read" },
+      { from:"me", text:"I'm literally coming to the middle", t: daysAgo(19,16,6), status:"read" },
+      { from:"them", text:"send a pic of ur way", t: daysAgo(19,16,8) },
+      { from:"me", text:"Yo bro", t: daysAgo(17,17,32), status:"read" },
+      { from:"them", text:"It's long bro", t: daysAgo(17,17,35) },
+      { from:"them", text:"What's up", t: daysAgo(17,19,44) },
+      { type:"location-start", who:"me", t: daysAgo(17,22,16) },
+      { type:"location-start", who:"them", t: daysAgo(16,1,9) },
+    ]},
+    { id:"t-amma", contactId:"amma", unread:false, messages:[
+      { from:"them", text:"When are you finished", t: daysAgo(59,13,31) },
+      { from:"them", text:"I will make food", t: daysAgo(59,13,32) },
+      { from:"them", text:"Send me your message", t: daysAgo(58,15,28) },
+      { from:"them", text:"Hello\nWhen r u coming. We're waiting to go athais house", t: daysAgo(47,17,5) },
+      { from:"them", text:"OTP to LOG ON TO YOUR ONLINE BANKING. Please call us if this wasn't you. NEVER share this code, not even with Santander staff\nK3TP3X9T", t: daysAgo(27,13,17) },
+      { type:"location-stop", who:"me", t: daysAgo(16,17,47) },
+      { type:"location-start", who:"me", t: daysAgo(16,20,43) },
+      { type:"location-stop", who:"me", t: daysAgo(15,20,24) },
+      { type:"location-start", who:"me", t: daysAgo(15,22,16) },
+      { type:"silenced", t: daysAgo(15,22,17) },
+    ]},
+    { id:"t-heemizz", contactId:"heemizz", unread:false, messages:[
+      { from:"them", text:"one more person to complete the house.\n📸 DM me if you're interested or would like more information and photos!", t: daysAgo(60,20,0) },
+      { from:"them", type:"link", domain:"landwoodpropertyauctions.com", t: daysAgo(60,20,1) },
+      { from:"me", text:"House was never listed on the housing site but this is a link from an auction", t: daysAgo(60,21,40), status:"read" },
+      { from:"me", text:"Lmk if ur interested?", t: daysAgo(60,21,41), status:"read" },
+      { from:"them", text:"Much love lemme have a look bro", t: daysAgo(59,21,51) },
+      { from:"them", text:"Hey bro, so if you move in late payments start from July or from when you move in?", t: daysAgo(56,19,20) },
+      { from:"them", text:"Cos I won't be back in uk till September", t: daysAgo(56,19,21) },
+      { from:"me", text:"Payment starts from July 1st", t: daysAgo(55,16,40), status:"read" },
+      { from:"me", text:"U can still move in September but contract is from July", t: daysAgo(55,16,41), status:"read" },
+      { from:"me", text:"It's the same for all houses", t: daysAgo(55,16,42), status:"read" },
+      { from:"me", text:"Hey so did u have a look?", t: daysAgo(55,16,50), status:"read", readAt: daysAgo(55,16,55) },
+    ]},
+    { id:"t-peppa", contactId:"peppa", unread:false, messages:[
+      { from:"them", text:"can u hear me", t: daysAgo(64,12,0) },
+      { from:"me", text:"yeah loud and clear", t: daysAgo(64,12,3), status:"read" },
+      { from:"them", text:"I can't tell if the calls are going through", t: daysAgo(64,12,5) },
+    ]},
+    { id:"t-joeliyn", contactId:"joeliyn", unread:false, messages:[
+      { from:"them", text:"hey! long time, how's the internship going", t: daysAgo(66,14,0) },
+      { from:"me", text:"going well! busy but good, how's things with you", t: daysAgo(66,15,10), status:"read" },
+    ]},
+  ];
+  return { contacts, threads };
+}
+
+const STORE_KEY = "imsg_clone_state_v2";
+function loadState(){
+  try{ const raw = localStorage.getItem(STORE_KEY); if(raw) return JSON.parse(raw); }catch(e){}
+  const seed = seedData();
+  localStorage.setItem(STORE_KEY, JSON.stringify(seed));
+  return seed;
+}
+function saveState(){ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+let state = loadState();
+let activeThreadId = null;
+let focusOn = true;
+
+/* ---------------- helpers ---------------- */
+function getContact(id){ return state.contacts.find(c=>c.id===id); }
+function threadName(th){ return getContact(th.contactId).name; }
+function lastMsg(th){ return th.messages[th.messages.length-1]; }
+function lastRealMsg(th){
+  for(let i=th.messages.length-1;i>=0;i--){
+    const m = th.messages[i];
+    if(m.type!=="location-start" && m.type!=="location-stop" && m.type!=="silenced") return m;
+  }
+  return th.messages[th.messages.length-1];
+}
+function avatarStyle(id){ const [c1,c2] = colorFor(id); return `--c1:${c1};--c2:${c2}`; }
+function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+const WK = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const WKFULL = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function pad(n){ return n<10?"0"+n:""+n; }
+function fmtHM(ts){ const d=new Date(ts); return pad(d.getHours())+":"+pad(d.getMinutes()); }
+function isSameDay(a,b){ return new Date(a).toDateString()===new Date(b).toDateString(); }
+
+function fmtListTime(ts){
+  const d = new Date(ts), n = new Date(now);
+  if(isSameDay(ts,now)) return fmtHM(ts);
+  const diffDays = Math.round((new Date(n.toDateString()) - new Date(d.toDateString()))/D);
+  if(diffDays===1) return "Yesterday";
+  if(diffDays<7) return WKFULL[d.getDay()];
+  return pad(d.getDate())+"/"+pad(d.getMonth()+1)+"/"+d.getFullYear();
+}
+function fmtReadDate(ts){ const d=new Date(ts); return pad(d.getDate())+"/"+pad(d.getMonth()+1)+"/"+d.getFullYear(); }
+function fmtDateSep(ts){
+  const d = new Date(ts);
+  if(isSameDay(ts,now)) return "Today "+fmtHM(ts);
+  return WK[d.getDay()]+" "+d.getDate()+" "+MON[d.getMonth()]+" at "+fmtHM(ts);
+}
+function previewText(m){
+  if(!m) return "";
+  if(m.type==="location-start") return (m.who==="me"?"You":threadNameByMsg(m))+" started sharing location";
+  if(m.type==="location-stop") return (m.who==="me"?"You":threadNameByMsg(m))+" stopped sharing location";
+  if(m.type==="silenced") return "Notifications silenced";
+  if(m.type==="link") return m.domain;
+  if(m.image) return "🖼️ Image";
+  const who = (m.from!=="me" && m.from!=="them") ? m.from+": " : "";
+  return who + (m.text||"").split("\n")[0];
+}
+function threadNameByMsg(){ return ""; }
+
+/* ---------------- render: thread list ---------------- */
+const threadListEl = document.getElementById("thread-list");
+function renderThreadList(filter){
+  const q = (filter||"").trim().toLowerCase();
+  let threads = [...state.threads].sort((a,b)=>lastRealMsg(b).t - lastRealMsg(a).t);
+  if(q){
+    threads = threads.filter(th=>{
+      const name = threadName(th).toLowerCase();
+      const inMsgs = th.messages.some(m=>m.text && m.text.toLowerCase().includes(q));
+      return name.includes(q) || inMsgs;
+    });
+  }
+  threadListEl.innerHTML = "";
+  if(threads.length===0){ threadListEl.innerHTML = `<div class="empty-state">No messages found</div>`; return; }
+  for(const th of threads){
+    const contact = getContact(th.contactId);
+    const lm = lastMsg(th);
+    const lr = lastRealMsg(th);
+    const row = document.createElement("div");
+    row.className = "thread-row";
+    row.dataset.id = th.id;
+    const avHtml = contact.silhouette ? SILHOUETTE : escapeHtml(initials(contact.name));
+    row.innerHTML = `
+      <div class="avatar ${contact.initial?'colored':''}" style="${avatarStyle(contact.id)}">${avHtml}</div>
+      <div class="thread-main">
+        <div class="thread-top">
+          <div class="thread-name">${escapeHtml(contact.name)}</div>
+          <div class="thread-time">${fmtListTime(lr.t)}</div>
+        </div>
+        <div class="thread-preview">
+          <div class="txt">${escapeHtml(previewText(lr))}</div>
+          ${th.unread?'<div class="unread-dot"></div>':'<svg class="chev" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="#8e8e93" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'}
+        </div>
+      </div>`;
+    row.addEventListener("click", ()=>openThread(th.id));
+    threadListEl.appendChild(row);
+  }
+  const resetEl = document.createElement("div");
+  resetEl.className = "reset-link";
+  resetEl.innerHTML = `<span id="reset-demo-link">Reset demo data</span>`;
+  threadListEl.appendChild(resetEl);
+  document.getElementById("reset-demo-link").addEventListener("click", (e)=>{
+    e.stopPropagation();
+    if(confirm("Reset all conversations back to the sample data? This clears anything you've sent.")){
+      state = seedData(); saveState(); renderThreadList(document.getElementById("search-input").value);
+    }
+  });
+}
+document.getElementById("search-input").addEventListener("input", e=>renderThreadList(e.target.value));
+
+document.getElementById("btn-focus-off").addEventListener("click", ()=>{
+  focusOn = false;
+  document.getElementById("focus-banner").classList.add("hidden");
+});
+
+/* ---------------- chat screen ---------------- */
+const chatScroll = document.getElementById("chat-scroll");
+const chatPillName = document.getElementById("chat-pill-name");
+const chatAvatar = document.getElementById("chat-avatar");
+const chatSub = document.getElementById("chat-sub");
+const msgInput = document.getElementById("msg-input");
+const sendBtn = document.getElementById("btn-send");
+const micBtn = document.getElementById("btn-mic");
+
+function openThread(id){
+  activeThreadId = id;
+  const th = state.threads.find(t=>t.id===id);
+  th.unread = false;
+  saveState();
+  const contact = getContact(th.contactId);
+  chatPillName.textContent = contact.name;
+  chatAvatar.innerHTML = contact.silhouette ? SILHOUETTE : escapeHtml(initials(contact.name));
+  chatAvatar.className = "chat-avatar" + (contact.initial ? " colored" : "");
+  chatAvatar.style.cssText += avatarStyle(contact.id);
+  chatSub.textContent = contact.city || "";
+  chatSub.style.display = contact.city ? "block" : "none";
+  msgInput.placeholder = contact.isSMS ? "Text Message · SMS" : "iMessage";
+  renderChat(th);
+  showScreen("screen-chat");
+  setTimeout(()=>{ chatScroll.scrollTop = chatScroll.scrollHeight; }, 10);
+}
+
+function renderChat(th){
+  chatScroll.innerHTML = "";
+  const contact = getContact(th.contactId);
+  th.messages.forEach((m, idx)=>{
+    const prev = th.messages[idx-1];
+    const isSys = m.type==="location-start" || m.type==="location-stop";
+    const needsSep = !prev || (m.t - prev.t) > H*3 || isSys;
+    if(needsSep && m.type!=="silenced"){
+      const sep = document.createElement("div");
+      sep.className = "date-sep";
+      sep.style.margin = isSys ? "10px 0 4px" : "16px 0 10px";
+      sep.textContent = fmtDateSep(m.t);
+      chatScroll.appendChild(sep);
+    }
+    if(m.type==="location-start" || m.type==="location-stop"){
+      const line = document.createElement("div");
+      line.className = "sys-line";
+      const who = m.who==="me" ? "You" : contact.name;
+      const verb = m.type==="location-start" ? "started" : "stopped";
+      const withWho = m.who==="me" ? contact.name : "you";
+      line.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 2l9 21-9-4-9 4 9-21z" fill="#8e8e93"/></svg> ${who} ${verb} sharing location with ${withWho}.`;
+      chatScroll.appendChild(line);
+      return;
+    }
+    if(m.type==="silenced"){
+      const line = document.createElement("div");
+      line.className = "sys-line silenced";
+      line.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M21 12.8A9 9 0 1111.2 3 7 7 0 0021 12.8z" fill="#9b99ff"/></svg> ${contact.name} has notifications silenced`;
+      chatScroll.appendChild(line);
+      return;
+    }
+    chatScroll.appendChild(buildMsgRow(th, m, idx));
+  });
+}
+
+function buildMsgRow(th, m, idx){
+  const isMe = m.from === "me";
+  const contact = getContact(th.contactId);
+  const next = th.messages[idx+1];
+  const grouped = next && next.from===m.from && !next.type && (next.t-m.t) < 60000;
+
+  const row = document.createElement("div");
+  row.className = `msg-row ${isMe?'me':'them'} ${grouped?'grouped-next':''}`;
+  row.dataset.idx = idx;
+
+  const inner = document.createElement("div");
+  inner.className = "msg-inner";
+
+  const col = document.createElement("div");
+  col.className = "bubble-col";
+
+  const bubbleWrap = document.createElement("div");
+  bubbleWrap.style.position = "relative";
+
+  if(m.type==="link"){
+    const card = document.createElement("div");
+    card.className = "link-card";
+    card.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#8e8e93" stroke-width="1.6"/><path d="M8.5 15.5l3-6.6 6.6-3-3 6.6-6.6 3z" fill="#8e8e93"/></svg><span>${escapeHtml(m.domain)}</span>`;
+    bubbleWrap.appendChild(card);
+  } else if(m.image){
+    const bubble = document.createElement("div");
+    bubble.className = `bubble img ${isMe?'me '+(contact.isSMS?'sms':'imsg'):'them'}`;
+    const img = document.createElement("img");
+    img.src = m.image;
+    bubble.appendChild(img);
+    bubbleWrap.appendChild(bubble);
+  } else {
+    const bubble = document.createElement("div");
+    bubble.className = `bubble ${isMe?'me '+(contact.isSMS?'sms':'imsg'):'them'}`;
+    bubble.textContent = m.text;
+    bubbleWrap.appendChild(bubble);
+  }
+
+  if(m.tapback){
+    const tb = document.createElement("div");
+    tb.className = "tapback";
+    tb.textContent = m.tapback;
+    bubbleWrap.appendChild(tb);
+  }
+  col.appendChild(bubbleWrap);
+
+  if(isMe && m.status && idx===lastMeIndex(th)){
+    const st = document.createElement("div");
+    st.className = `status-line ${m.status==='read'?'read':''}`;
+    st.textContent = m.status==="read" ? "Read " + fmtReadDate(m.readAt||m.t) : (m.status.charAt(0).toUpperCase()+m.status.slice(1));
+    col.appendChild(st);
+  }
+
+  inner.appendChild(col);
+  row.appendChild(inner);
+
+  const timeReveal = document.createElement("div");
+  timeReveal.className = "msg-time-reveal";
+  timeReveal.textContent = fmtHM(m.t);
+  if(isMe) row.insertBefore(timeReveal, inner); else row.appendChild(timeReveal);
+
+  attachSwipeReveal(row, timeReveal);
+  attachLongPress(row, th, m);
+  return row;
+}
+function lastMeIndex(th){ for(let i=th.messages.length-1;i>=0;i--) if(th.messages[i].from==="me") return i; return -1; }
+
+function attachSwipeReveal(row, timeEl){
+  let startX=0, startY=0, dragging=false, locked=false;
+  const inner = row.querySelector(".msg-inner");
+  row.addEventListener("touchstart", e=>{ startX=e.touches[0].clientX; startY=e.touches[0].clientY; dragging=true; locked=false; }, {passive:true});
+  row.addEventListener("touchmove", e=>{
+    if(!dragging) return;
+    const dx = e.touches[0].clientX - startX, dy = e.touches[0].clientY - startY;
+    if(!locked){ if(Math.abs(dy) > Math.abs(dx)+4){ dragging=false; return; } if(Math.abs(dx) > 6) locked=true; }
+    if(!locked) return;
+    const shift = Math.max(-60, Math.min(0, dx));
+    row.classList.add("dragging");
+    inner.style.transform = `translateX(${shift}px)`;
+    const reveal = Math.min(1, -shift/50);
+    timeEl.style.opacity = reveal; timeEl.style.width = (reveal*54)+"px";
+  }, {passive:true});
+  function end(){
+    if(!dragging) return; dragging=false;
+    row.classList.remove("dragging"); inner.style.transform = "translateX(0)";
+    setTimeout(()=>{ timeEl.style.opacity=0; timeEl.style.width="0"; }, 900);
+  }
+  row.addEventListener("touchend", end);
+  row.addEventListener("touchcancel", end);
+}
+
+function attachLongPress(row, th, m){
+  const bubble = row.querySelector(".bubble") || row.querySelector(".link-card");
+  if(!bubble) return;
+  let timer=null;
+  const start = ()=>{ timer = setTimeout(()=>{
+    const rect = bubble.getBoundingClientRect();
+    openTapbackPicker(rect, (emoji)=>{ m.tapback = (m.tapback===emoji) ? undefined : emoji; saveState(); renderChat(th); });
+  }, 480); };
+  const cancel = ()=>{ if(timer) clearTimeout(timer); };
+  bubble.addEventListener("touchstart", start, {passive:true});
+  bubble.addEventListener("touchend", cancel);
+  bubble.addEventListener("touchmove", cancel);
+  bubble.addEventListener("mousedown", start);
+  bubble.addEventListener("mouseup", cancel);
+  bubble.addEventListener("mouseleave", cancel);
+}
+
+function openTapbackPicker(rect, onPick){
+  closeTapbackPicker();
+  const backdrop = document.createElement("div"); backdrop.className = "tb-backdrop"; backdrop.id = "tb-backdrop";
+  const picker = document.createElement("div"); picker.className = "tb-picker"; picker.id = "tb-picker";
+  ["❤️","👍","👎","😂","‼️","❓"].forEach(em=>{
+    const b = document.createElement("button"); b.textContent = em;
+    b.addEventListener("click", ()=>{ onPick(em); closeTapbackPicker(); });
+    picker.appendChild(b);
+  });
+  document.body.appendChild(backdrop); document.body.appendChild(picker);
+  const vw = window.innerWidth;
+  let left = rect.left + rect.width/2 - 120;
+  left = Math.max(8, Math.min(vw-248, left));
+  picker.style.left = left+"px";
+  picker.style.top = Math.max(8, rect.top-56)+"px";
+  backdrop.addEventListener("click", closeTapbackPicker);
+}
+function closeTapbackPicker(){
+  const p = document.getElementById("tb-picker"); const b = document.getElementById("tb-backdrop");
+  if(p) p.remove(); if(b) b.remove();
+}
+
+/* ---------------- sending ---------------- */
+function autoResize(){
+  msgInput.style.height = "auto";
+  msgInput.style.height = Math.min(100, msgInput.scrollHeight) + "px";
+  const hasText = msgInput.value.trim().length>0;
+  sendBtn.disabled = !hasText;
+  sendBtn.style.display = hasText ? "flex" : "none";
+  micBtn.style.display = hasText ? "none" : "flex";
+}
+msgInput.addEventListener("input", autoResize);
+
+function sendMessage(){
+  const text = msgInput.value.trim();
+  if(!text || !activeThreadId) return;
+  const th = state.threads.find(t=>t.id===activeThreadId);
+  const contact = getContact(th.contactId);
+  sendBtn.className = "send-btn" + (contact.isSMS ? " sms" : "");
+  const m = { from:"me", text, t: Date.now(), status:"delivered" };
+  th.messages.push(m);
+  saveState(); renderChat(th);
+  chatScroll.scrollTop = chatScroll.scrollHeight;
+  msgInput.value = ""; autoResize();
+  renderThreadList(document.getElementById("search-input").value);
+  scheduleReply(th, contact);
+}
+
+function scheduleReply(th, contact){
+  setTimeout(()=>{
+    const lm = th.messages[th.messages.length-1];
+    if(lm && lm.from==="me"){ lm.status="read"; lm.readAt = Date.now(); saveState(); if(activeThreadId===th.id) renderChat(th); }
+  }, 1200 + Math.random()*900);
+
+  if(contact.noReply) return;
+
+  const delay = 1800 + Math.random()*2200;
+  setTimeout(()=>{ if(activeThreadId===th.id) showTyping(true); }, delay*0.35);
+  setTimeout(()=>{
+    if(activeThreadId===th.id) showTyping(false);
+    const replies = ["haha true","no way, really?","yeah for sure","let me check and get back to you","😂😂","sounds good!","wait what","omg yes","I'll call you later","👍"];
+    const reply = { from:"them", text: replies[Math.floor(Math.random()*replies.length)], t: Date.now() };
+    th.messages.push(reply);
+    th.unread = (activeThreadId!==th.id);
+    saveState();
+    if(activeThreadId===th.id){ renderChat(th); chatScroll.scrollTop = chatScroll.scrollHeight; }
+    renderThreadList(document.getElementById("search-input").value);
+  }, delay);
+}
+
+let typingEl = null;
+function showTyping(on){
+  if(on){
+    if(typingEl) return;
+    typingEl = document.createElement("div");
+    typingEl.className = "typing-row";
+    typingEl.innerHTML = `<div class="typing-bubble"><span></span><span></span><span></span></div>`;
+    chatScroll.appendChild(typingEl);
+    chatScroll.scrollTop = chatScroll.scrollHeight;
+  } else { if(typingEl){ typingEl.remove(); typingEl=null; } }
+}
+
+sendBtn.addEventListener("click", sendMessage);
+msgInput.addEventListener("keydown", e=>{ if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); sendMessage(); } });
+autoResize();
+
+const fileInput = document.getElementById("fileInput");
+document.getElementById("btn-attach").addEventListener("click", ()=>fileInput.click());
+fileInput.addEventListener("change", ()=>{
+  const file = fileInput.files[0];
+  if(!file || !activeThreadId) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    const th = state.threads.find(t=>t.id===activeThreadId);
+    const contact = getContact(th.contactId);
+    const m = { from:"me", image:reader.result, t: Date.now(), status:"delivered" };
+    th.messages.push(m);
+    saveState(); renderChat(th);
+    chatScroll.scrollTop = chatScroll.scrollHeight;
+    renderThreadList(document.getElementById("search-input").value);
+    scheduleReply(th, contact);
+  };
+  reader.readAsDataURL(file);
+  fileInput.value = "";
+});
+
+/* ---------------- navigation ---------------- */
+function showScreen(id){
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+}
+function goHome(){
+  document.getElementById("screen-chat").classList.remove("active");
+  document.getElementById("screen-new").classList.remove("active");
+  activeThreadId = null;
+  renderThreadList(document.getElementById("search-input").value);
+}
+document.getElementById("btn-back").addEventListener("click", goHome);
+
+(function(){
+  const chatScreenEl = document.getElementById("screen-chat");
+  let startX=0, tracking=false;
+  chatScreenEl.addEventListener("touchstart", e=>{
+    if(e.touches[0].clientX < 24){ startX = e.touches[0].clientX; tracking=true; chatScreenEl.classList.add("dragging"); }
+  }, {passive:true});
+  chatScreenEl.addEventListener("touchmove", e=>{
+    if(!tracking) return;
+    const dx = Math.max(0, e.touches[0].clientX - startX);
+    chatScreenEl.style.transform = `translate3d(${dx}px,0,0)`;
+  }, {passive:true});
+  chatScreenEl.addEventListener("touchend", e=>{
+    if(!tracking) return; tracking=false;
+    chatScreenEl.classList.remove("dragging");
+    const dx = e.changedTouches[0].clientX - startX;
+    chatScreenEl.style.transform = "";
+    if(dx > 90) goHome();
+  });
+})();
+
+document.getElementById("btn-edit").addEventListener("click", ()=>{
+  const btn = document.getElementById("btn-edit");
+  btn.textContent = btn.textContent==="Edit" ? "Done" : "Edit";
+});
+
+const newContactList = document.getElementById("new-contact-list");
+document.getElementById("btn-menu").addEventListener("click", ()=>{
+  document.getElementById("new-to-input").value = "";
+  renderNewContactList("");
+  showScreen("screen-new");
+});
+document.getElementById("btn-new-cancel").addEventListener("click", ()=>{
+  document.getElementById("screen-new").classList.remove("active");
+});
+document.getElementById("new-to-input").addEventListener("input", e=>renderNewContactList(e.target.value));
+function renderNewContactList(q){
+  q = q.trim().toLowerCase();
+  newContactList.innerHTML = `<div class="section-label">Suggested</div>`;
+  const list = state.contacts.filter(c=>!q || c.name.toLowerCase().includes(q));
+  for(const c of list){
+    const row = document.createElement("div");
+    row.className = "contact-pick";
+    const avHtml = c.silhouette ? SILHOUETTE : escapeHtml(initials(c.name));
+    row.innerHTML = `
+      <div class="avatar ${c.initial?'colored':''}" style="width:40px;height:40px;font-size:15px;${avatarStyle(c.id)}">${avHtml}</div>
+      <div class="contact-pick-info">
+        <div class="contact-pick-name">${escapeHtml(c.name)}</div>
+        <div class="contact-pick-sub">${c.isSMS?'Text Message · SMS':'iMessage'}</div>
+      </div>`;
+    row.addEventListener("click", ()=>{
+      const th = state.threads.find(t=>t.contactId===c.id);
+      document.getElementById("screen-new").classList.remove("active");
+      if(th){ openThread(th.id); }
+      else{
+        const newTh = { id:"t"+Date.now(), contactId:c.id, unread:false, messages:[] };
+        state.threads.push(newTh); saveState(); openThread(newTh.id);
+      }
+    });
+    newContactList.appendChild(row);
+  }
+}
+
+/* ---------------- clock ---------------- */
+function tickClock(){
+  const d = new Date();
+  document.getElementById("clock").textContent = pad(d.getHours())+":"+pad(d.getMinutes());
+}
+tickClock(); setInterval(tickClock, 15000);
+
+/* ---------------- init ---------------- */
+renderThreadList("");
+document.addEventListener("gesturestart", e=>e.preventDefault());
+document.addEventListener("touchmove", function(e){ if(e.scale && e.scale!==1) e.preventDefault(); }, {passive:false});
+
+})();
+</script>
+</body>
+</html>
