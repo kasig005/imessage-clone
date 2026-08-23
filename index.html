@@ -32,9 +32,9 @@
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:var(--system-font); -webkit-font-smoothing:antialiased; }
-#app{ position:fixed; inset:0; height:100dvh; height:var(--app-height, 100dvh); background:var(--bg); display:flex; flex-direction:column; overflow:hidden; }
+#app{ position:fixed; inset:0; background:var(--bg); display:flex; flex-direction:column; overflow:hidden; }
 
-#screens{ position:relative; flex:1; overflow:hidden; }
+#screens{ position:relative; flex:1; min-height:0; overflow:hidden; }
 
 /* ---------- Screen stack ---------- */
 .screen{
@@ -80,7 +80,7 @@ html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:
 .search-box input::placeholder{ color:var(--label-3); }
 
 /* ---------- Conversation list ---------- */
-.list-scroll{ flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding-bottom:70px; }
+.list-scroll{ flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; padding-bottom:70px; }
 .thread-row{ display:flex; align-items:center; gap:12px; padding:9px 16px; position:relative; }
 .thread-row:active{ background:rgba(255,255,255,0.06); }
 .avatar{ width:52px;height:52px;border-radius:50%; display:flex;align-items:center;justify-content:center; color:#fff;font-size:19px;font-weight:600; flex-shrink:0; background:var(--bg-elevated-2); overflow:hidden; }
@@ -108,7 +108,7 @@ html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:
 .chat-pill-name{ font-size:15px; font-weight:600; color:var(--label); }
 .chat-sub{ font-size:12px; color:var(--label-3); text-align:center; margin-top:3px; }
 
-.chat-scroll{ flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:14px 12px 14px; display:flex; flex-direction:column; gap:3px; }
+.chat-scroll{ flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:14px 12px 14px; display:flex; flex-direction:column; gap:3px; }
 .date-sep{ text-align:center; font-size:12.5px; color:var(--label-3); font-weight:500; margin:16px 0 10px; }
 .sys-line{ text-align:center; font-size:12px; color:var(--label-3); margin:2px 0 12px; display:flex; align-items:center; justify-content:center; gap:4px; }
 .sys-line.silenced{ color:#9b99ff; }
@@ -280,26 +280,6 @@ html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:
 <script>
 (function(){
 "use strict";
-
-/* Fix iOS Safari's unreliable viewport height (classic 100vh bug) so the
-   app always fills the real visible screen with no dead space at the
-   bottom, whether running in a tab or added to the Home Screen. */
-function setAppHeight(){
-  const h = (window.visualViewport ? window.visualViewport.height : window.innerHeight);
-  document.documentElement.style.setProperty('--app-height', h + 'px');
-}
-setAppHeight();
-window.addEventListener('resize', setAppHeight);
-window.addEventListener('orientationchange', ()=>{ setTimeout(setAppHeight, 50); setTimeout(setAppHeight, 300); setTimeout(setAppHeight, 600); });
-window.addEventListener('pageshow', setAppHeight);
-document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) setAppHeight(); });
-if(window.visualViewport){
-  window.visualViewport.addEventListener('resize', setAppHeight);
-  window.visualViewport.addEventListener('scroll', setAppHeight);
-}
-// Safari sometimes reports a stale height right at load, before its chrome
-// (address bar) finishes settling — recheck a few times just after load.
-[50, 150, 300, 600, 1000].forEach(ms => setTimeout(setAppHeight, ms));
 
 const SILHOUETTE = `<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8.5" r="4" fill="#fff"/><path d="M4 20c0-3.9 3.6-7 8-7s8 3.1 8 7" fill="#fff"/></svg>`;
 
@@ -881,18 +861,12 @@ fileInput.addEventListener("change", ()=>{
 function showScreen(id){
   document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
   document.getElementById(id).classList.add("active");
-  setAppHeight();
-  setTimeout(setAppHeight, 60);
-  setTimeout(setAppHeight, 350);
 }
 function goHome(){
   document.getElementById("screen-chat").classList.remove("active");
   document.getElementById("screen-new").classList.remove("active");
   activeThreadId = null;
   renderThreadList(document.getElementById("search-input").value);
-  setAppHeight();
-  setTimeout(setAppHeight, 60);
-  setTimeout(setAppHeight, 350);
 }
 document.getElementById("btn-back").addEventListener("click", goHome);
 
