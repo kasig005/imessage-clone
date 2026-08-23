@@ -32,7 +32,7 @@
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:var(--system-font); -webkit-font-smoothing:antialiased; }
-#app{ position:fixed; inset:0; height:var(--app-height, 100%); background:var(--bg); display:flex; flex-direction:column; overflow:hidden; }
+#app{ position:fixed; inset:0; height:100dvh; height:var(--app-height, 100dvh); background:var(--bg); display:flex; flex-direction:column; overflow:hidden; }
 
 #screens{ position:relative; flex:1; overflow:hidden; }
 
@@ -285,12 +285,21 @@ html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:
    app always fills the real visible screen with no dead space at the
    bottom, whether running in a tab or added to the Home Screen. */
 function setAppHeight(){
-  document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
+  const h = (window.visualViewport ? window.visualViewport.height : window.innerHeight);
+  document.documentElement.style.setProperty('--app-height', h + 'px');
 }
 setAppHeight();
 window.addEventListener('resize', setAppHeight);
-window.addEventListener('orientationchange', ()=>setTimeout(setAppHeight, 300));
-if(window.visualViewport){ window.visualViewport.addEventListener('resize', setAppHeight); }
+window.addEventListener('orientationchange', ()=>{ setTimeout(setAppHeight, 50); setTimeout(setAppHeight, 300); setTimeout(setAppHeight, 600); });
+window.addEventListener('pageshow', setAppHeight);
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) setAppHeight(); });
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize', setAppHeight);
+  window.visualViewport.addEventListener('scroll', setAppHeight);
+}
+// Safari sometimes reports a stale height right at load, before its chrome
+// (address bar) finishes settling — recheck a few times just after load.
+[50, 150, 300, 600, 1000].forEach(ms => setTimeout(setAppHeight, ms));
 
 const SILHOUETTE = `<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8.5" r="4" fill="#fff"/><path d="M4 20c0-3.9 3.6-7 8-7s8 3.1 8 7" fill="#fff"/></svg>`;
 
@@ -872,12 +881,18 @@ fileInput.addEventListener("change", ()=>{
 function showScreen(id){
   document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
   document.getElementById(id).classList.add("active");
+  setAppHeight();
+  setTimeout(setAppHeight, 60);
+  setTimeout(setAppHeight, 350);
 }
 function goHome(){
   document.getElementById("screen-chat").classList.remove("active");
   document.getElementById("screen-new").classList.remove("active");
   activeThreadId = null;
   renderThreadList(document.getElementById("search-input").value);
+  setAppHeight();
+  setTimeout(setAppHeight, 60);
+  setTimeout(setAppHeight, 350);
 }
 document.getElementById("btn-back").addEventListener("click", goHome);
 
