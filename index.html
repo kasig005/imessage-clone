@@ -11,23 +11,59 @@
 <meta name="apple-mobile-web-app-title" content="Messages">
 <meta name="theme-color" content="#000000">
 <style>
+/* ═══════════════════════════════════════════════════════════════════
+   TWEAK ME — all the values worth adjusting live in this one block.
+   Change a number here, save, reload. Nothing else needs touching.
+   ═══════════════════════════════════════════════════════════════════ */
 :root{
-  --blue:#0a84ff;
-  --blue-2:#0060df;
-  --green:#31d454;
-  --green-2:#1aa63c;
-  --bg:#000000;
+
+  /* ---- SPACING AT SCREEN EDGES ------------------------------------
+     If the input bar isn't sitting flush at the bottom on your phone,
+     this is the first thing to change. Lower = closer to the edge.
+     Set --safe-bottom-scale to 0 to ignore iOS's home-indicator gap
+     entirely (0.5 = half of it, 1 = full/default).                  */
+  --input-bar-gap: 4px;        /* extra space under the message input */
+  --search-bar-gap: 6px;       /* extra space under the search bar    */
+  --safe-bottom-scale: 1;      /* 0 = ignore iOS bottom inset, 1 = full */
+  --safe-top-scale: 1;         /* 0 = ignore iOS notch inset, 1 = full  */
+
+  /* ---- SCROLL FADE ------------------------------------------------
+     How far messages fade out as they scroll under the header.
+     0px = hard cut (no fade). Bigger = longer, softer fade.         */
+  --fade-height: 22px;
+
+  /* ---- BUBBLES ---------------------------------------------------- */
+  --bubble-radius: 19px;       /* roundness of message bubbles        */
+  --bubble-font: 16.5px;       /* message text size                   */
+  --bubble-pad-y: 9px;         /* vertical padding inside a bubble    */
+  --bubble-pad-x: 14px;        /* horizontal padding inside a bubble  */
+  --bubble-max-width: 80%;     /* how wide a bubble can get           */
+
+  /* ---- CONVERSATION LIST ------------------------------------------ */
+  --avatar-size: 52px;         /* profile circle size in the list     */
+  --row-name-font: 16.5px;     /* contact name size                   */
+  --row-preview-font: 15px;    /* preview text size                   */
+  --preview-lines: 2;          /* how many lines of preview to show   */
+
+  /* ---- COLOURS ---------------------------------------------------- */
+  --blue:#0a84ff;              /* iMessage bubble (top of gradient)   */
+  --blue-2:#0060df;            /* iMessage bubble (bottom)            */
+  --green:#31d454;             /* SMS bubble (top)                    */
+  --green-2:#1aa63c;           /* SMS bubble (bottom)                 */
+  --gray-bubble:#26252a;       /* their bubble                        */
+  --bg:#000000;                /* app background                      */
+
+  /* ═══ below here is plumbing — you shouldn't need to touch it ═══ */
   --bg-elevated:#1c1c1e;
   --bg-elevated-2:#2c2c2e;
-  --gray-bubble:#26252a;
   --sep:rgba(255,255,255,0.14);
   --label:#ffffff;
   --label-2:rgba(235,235,245,0.6);
   --label-3:rgba(235,235,245,0.34);
   --purple:#5e5ce6;
   --nav-h:44px;
-  --safe-top:env(safe-area-inset-top,0px);
-  --safe-bottom:env(safe-area-inset-bottom,0px);
+  --safe-top:calc(env(safe-area-inset-top,0px) * var(--safe-top-scale));
+  --safe-bottom:calc(env(safe-area-inset-bottom,0px) * var(--safe-bottom-scale));
   --system-font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -80,7 +116,7 @@ html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:
 .bottom-bar{
   position:absolute; left:0; right:0; bottom:0; z-index:8;
   display:flex; align-items:center; gap:10px;
-  padding:8px 14px; padding-bottom:calc(6px + var(--safe-bottom));
+  padding:8px 14px; padding-bottom:calc(var(--search-bar-gap) + var(--safe-bottom));
   pointer-events:none;
 }
 .bottom-bar > *{ pointer-events:auto; }
@@ -109,20 +145,20 @@ html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:
 
 /* ---------- Conversation list ---------- */
 .list-scroll{ flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; padding-bottom:calc(80px + var(--safe-bottom));
-  -webkit-mask-image:linear-gradient(to bottom, transparent 0, black 22px);
-  mask-image:linear-gradient(to bottom, transparent 0, black 22px);
+  -webkit-mask-image:linear-gradient(to bottom, transparent 0, black var(--fade-height));
+  mask-image:linear-gradient(to bottom, transparent 0, black var(--fade-height));
 }
 .thread-row{ display:flex; align-items:center; gap:12px; padding:9px 16px; position:relative; }
 .thread-row:active{ background:rgba(255,255,255,0.06); }
-.avatar{ width:52px;height:52px;border-radius:50%; display:flex;align-items:center;justify-content:center; color:#fff;font-size:19px;font-weight:600; flex-shrink:0; background:var(--bg-elevated-2); overflow:hidden; }
+.avatar{ width:var(--avatar-size);height:var(--avatar-size);border-radius:50%; display:flex;align-items:center;justify-content:center; color:#fff;font-size:19px;font-weight:600; flex-shrink:0; background:var(--bg-elevated-2); overflow:hidden; }
 .avatar.colored{ background:linear-gradient(160deg,var(--c1),var(--c2)); }
 .avatar svg{ width:60%; height:60%; }
 .thread-main{ flex:1;min-width:0; border-bottom:0.5px solid var(--sep); padding-bottom:10px; padding-top:2px; display:flex; flex-direction:column; gap:3px; }
 .thread-top{ display:flex; align-items:baseline; justify-content:space-between; gap:8px;}
-.thread-name{ font-size:16.5px; font-weight:600; color:var(--label); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.thread-name{ font-size:var(--row-name-font); font-weight:600; color:var(--label); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .thread-time{ font-size:15px; color:var(--label-3); flex-shrink:0; }
-.thread-preview{ font-size:15px; color:var(--label-2); display:flex; align-items:flex-start; gap:5px; }
-.thread-preview .txt{ flex:1; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.32; }
+.thread-preview{ font-size:var(--row-preview-font); color:var(--label-2); display:flex; align-items:flex-start; gap:5px; }
+.thread-preview .txt{ flex:1; display:-webkit-box; -webkit-line-clamp:var(--preview-lines); -webkit-box-orient:vertical; overflow:hidden; line-height:1.32; }
 .unread-dot{ width:9px;height:9px;border-radius:50%;background:var(--blue); flex-shrink:0; }
 .chev{ opacity:0.3; flex-shrink:0; }
 .empty-state{ text-align:center; color:var(--label-3); font-size:15px; margin-top:60px; padding:0 30px; line-height:1.5; }
@@ -140,8 +176,8 @@ html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:
 .chat-sub{ font-size:12px; color:var(--label-3); text-align:center; margin-top:3px; }
 
 .chat-scroll{ flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:14px 12px 14px; display:flex; flex-direction:column; gap:3px;
-  -webkit-mask-image:linear-gradient(to bottom, transparent 0, black 22px);
-  mask-image:linear-gradient(to bottom, transparent 0, black 22px);
+  -webkit-mask-image:linear-gradient(to bottom, transparent 0, black var(--fade-height));
+  mask-image:linear-gradient(to bottom, transparent 0, black var(--fade-height));
 }
 .date-sep{ text-align:center; font-size:12.5px; color:var(--label-3); font-weight:500; margin:16px 0 10px; }
 .sys-line{ text-align:center; font-size:12px; color:var(--label-3); margin:2px 0 12px; display:flex; align-items:center; justify-content:center; gap:4px; }
@@ -151,12 +187,12 @@ html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:
 .msg-row{ display:flex; margin:2px 0; position:relative; touch-action:pan-y; }
 .msg-row.me{ justify-content:flex-end; }
 .msg-row.them{ justify-content:flex-start; }
-.msg-inner{ display:flex; align-items:flex-end; gap:6px; max-width:80%; transform:translateX(0); transition:transform .18s ease; }
+.msg-inner{ display:flex; align-items:flex-end; gap:6px; max-width:var(--bubble-max-width); transform:translateX(0); transition:transform .18s ease; }
 .msg-row.dragging .msg-inner{ transition:none; }
 .bubble-col{ display:flex; flex-direction:column; position:relative; }
 .name-tag{ font-size:11px; color:var(--label-3); margin:0 0 3px 12px; }
 
-.bubble{ padding:9px 14px; border-radius:19px; font-size:16.5px; line-height:1.3; word-wrap:break-word; white-space:pre-wrap; position:relative; animation:pop .22s cubic-bezier(.34,1.56,.64,1); }
+.bubble{ padding:var(--bubble-pad-y) var(--bubble-pad-x); border-radius:var(--bubble-radius); font-size:var(--bubble-font); line-height:1.3; word-wrap:break-word; white-space:pre-wrap; position:relative; animation:pop .22s cubic-bezier(.34,1.56,.64,1); }
 @keyframes pop{ from{ transform:scale(.7); opacity:0; } to{ transform:scale(1); opacity:1; } }
 .bubble.me.imsg{ background:linear-gradient(180deg,var(--blue),var(--blue-2)); color:#fff; }
 .bubble.me.sms{ background:linear-gradient(180deg,var(--green),var(--green-2)); color:#fff; }
@@ -179,7 +215,7 @@ html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:
 
 .bubble.them.tailed::before{ left:-7px; border-bottom-right-radius:17px 15px; background:var(--gray-bubble); }
 .bubble.them.tailed::after{ left:-15px; border-bottom-right-radius:11px; }
-.msg-row.grouped-next .bubble{ border-bottom-right-radius:19px; border-bottom-left-radius:19px; }
+.msg-row.grouped-next .bubble{ border-bottom-right-radius:var(--bubble-radius); border-bottom-left-radius:var(--bubble-radius); }
 .msg-row.grouped-next .bubble::after,
 .msg-row.grouped-next .bubble::before{ display:none; }
 
@@ -211,7 +247,7 @@ html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:
 .tb-backdrop{ position:fixed; inset:0; z-index:49; background:rgba(0,0,0,0); }
 
 /* ---------- Input bar ---------- */
-.input-bar{ display:flex; align-items:flex-end; gap:8px; padding:8px 10px; padding-bottom:calc(4px + var(--safe-bottom)); background:var(--bg); flex-shrink:0; }
+.input-bar{ display:flex; align-items:flex-end; gap:8px; padding:8px 10px; padding-bottom:calc(var(--input-bar-gap) + var(--safe-bottom)); background:var(--bg); flex-shrink:0; }
 .round-btn{ width:32px;height:32px;border-radius:50%;border:none; background:none; color:var(--label-3); display:flex;align-items:center;justify-content:center; flex-shrink:0; margin-bottom:2px; }
 .round-btn:active{ opacity:0.4; }
 .input-pill{ flex:1; background:var(--bg-elevated); border-radius:18px; min-height:36px; max-height:110px; display:flex; align-items:center; padding:0 6px 0 14px; }
