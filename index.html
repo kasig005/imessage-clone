@@ -24,6 +24,13 @@
      entirely (0.5 = half of it, 1 = full/default).                  */
   --input-bar-gap: 0px;        /* extra space under the message input */
   --search-bar-gap: 4px;       /* extra space under the search bar    */
+  --bar-drop: 0px;             /* PUSH BARS DOWN. Increase (e.g. 20px,
+                                  30px) until the bar sits flush with
+                                  the very bottom of your screen.     */
+  --app-extend: 0px;           /* Auto-set by JS in standalone mode.
+                                  iOS reports a viewport shorter than
+                                  the real screen; this stretches the
+                                  app into that dead zone. Leave 0.   */
   --safe-bottom-scale: 0;      /* 0 = ignore iOS bottom inset, 1 = full */
   --safe-top-scale: 1;         /* 0 = ignore iOS notch inset, 1 = full  */
 
@@ -68,7 +75,7 @@
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:var(--system-font); -webkit-font-smoothing:antialiased; }
-#app{ position:fixed; inset:0; background:var(--bg); display:flex; flex-direction:column; overflow:hidden; }
+#app{ position:fixed; top:0; left:0; right:0; bottom:0; height:calc(100% + var(--app-extend)); background:var(--bg); display:flex; flex-direction:column; overflow:hidden; }
 
 #screens{ position:relative; flex:1; min-height:0; overflow:hidden; }
 
@@ -114,7 +121,7 @@ html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:
 /* Floating bottom search bar + compose button (iOS 26 Messages layout).
    Sits over the list, translucent so rows scroll visibly behind it. */
 .bottom-bar{
-  position:absolute; left:0; right:0; bottom:0; z-index:8;
+  position:absolute; left:0; right:0; bottom:calc(-1 * var(--bar-drop)); z-index:8;
   display:flex; align-items:center; gap:10px;
   padding:8px 14px; padding-bottom:calc(var(--search-bar-gap) + var(--safe-bottom));
   pointer-events:none;
@@ -247,7 +254,7 @@ html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:
 .tb-backdrop{ position:fixed; inset:0; z-index:49; background:rgba(0,0,0,0); }
 
 /* ---------- Input bar ---------- */
-.input-bar{ display:flex; align-items:flex-end; gap:8px; padding:8px 10px; padding-bottom:calc(var(--input-bar-gap) + var(--safe-bottom)); background:var(--bg); flex-shrink:0; }
+.input-bar{ display:flex; align-items:flex-end; gap:8px; margin-bottom:calc(-1 * var(--bar-drop)); padding:8px 10px; padding-bottom:calc(var(--input-bar-gap) + var(--safe-bottom)); background:var(--bg); flex-shrink:0; }
 .round-btn{ width:32px;height:32px;border-radius:50%;border:none; background:none; color:var(--label-3); display:flex;align-items:center;justify-content:center; flex-shrink:0; margin-bottom:2px; }
 .round-btn:active{ opacity:0.4; }
 .input-pill{ flex:1; background:var(--bg-elevated); border-radius:18px; min-height:36px; max-height:110px; display:flex; align-items:center; padding:0 6px 0 14px; }
@@ -374,6 +381,27 @@ html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:
 <script>
 (function(){
 "use strict";
+
+/* iOS standalone (Home Screen) apps report a layout viewport SHORTER than the
+   physical screen — e.g. innerHeight 894 on a 956px screen. That leftover strip
+   is unreachable by padding, which is what leaves black space under the input
+   bar. Measure it and stretch #app into it. Only in standalone: in Safari the
+   same difference is just the browser toolbars, which we must NOT overlap. */
+function setAppExtend(){
+  const standalone = (window.navigator.standalone === true) ||
+                     window.matchMedia('(display-mode: standalone)').matches;
+  let extend = 0;
+  if(standalone){
+    const diff = (window.screen.height || 0) - window.innerHeight;
+    // Only trust plausible values; ignore landscape/odd states.
+    if(diff > 0 && diff < 200) extend = diff;
+  }
+  document.documentElement.style.setProperty('--app-extend', extend + 'px');
+}
+setAppExtend();
+window.addEventListener('resize', setAppExtend);
+window.addEventListener('orientationchange', ()=>setTimeout(setAppExtend, 300));
+window.addEventListener('pageshow', setAppExtend);
 
 const SILHOUETTE = `<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8.5" r="4" fill="#fff"/><path d="M4 20c0-3.9 3.6-7 8-7s8 3.1 8 7" fill="#fff"/></svg>`;
 
