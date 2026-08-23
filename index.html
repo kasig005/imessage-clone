@@ -74,13 +74,44 @@ html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:
 .profile-banner svg{ opacity:0.3; flex-shrink:0; }
 
 .search-wrap{ padding:0 12px 8px; flex-shrink:0; }
+
+/* Floating bottom search bar + compose button (iOS 26 Messages layout).
+   Sits over the list, translucent so rows scroll visibly behind it. */
+.bottom-bar{
+  position:absolute; left:0; right:0; bottom:0; z-index:8;
+  display:flex; align-items:center; gap:10px;
+  padding:8px 14px; padding-bottom:calc(6px + var(--safe-bottom));
+  pointer-events:none;
+}
+.bottom-bar > *{ pointer-events:auto; }
+.bottom-search{
+  flex:1; height:46px; border-radius:23px;
+  background:rgba(38,38,42,0.72);
+  backdrop-filter:saturate(180%) blur(22px); -webkit-backdrop-filter:saturate(180%) blur(22px);
+  display:flex; align-items:center; gap:9px; padding:0 16px;
+}
+.bottom-search input{
+  border:none;background:none;outline:none;font-size:17px;flex:1;color:var(--label);
+  font-family:var(--system-font);
+}
+.bottom-search input::placeholder{ color:rgba(235,235,245,0.5); }
+.compose-btn{
+  width:46px;height:46px;border-radius:50%;flex-shrink:0;border:none;
+  background:rgba(38,38,42,0.72);
+  backdrop-filter:saturate(180%) blur(22px); -webkit-backdrop-filter:saturate(180%) blur(22px);
+  display:flex;align-items:center;justify-content:center;
+}
+.compose-btn:active{ opacity:0.55; }
 .search-box{ background:var(--bg-elevated); border-radius:11px; height:36px; display:flex; align-items:center; gap:6px; padding:0 10px; }
 .search-box svg{ flex-shrink:0; opacity:0.5; }
 .search-box input{ border:none;background:none;outline:none;font-size:16px;flex:1;color:var(--label);font-family:var(--system-font); }
 .search-box input::placeholder{ color:var(--label-3); }
 
 /* ---------- Conversation list ---------- */
-.list-scroll{ flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; padding-bottom:70px; }
+.list-scroll{ flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; padding-bottom:calc(80px + var(--safe-bottom));
+  -webkit-mask-image:linear-gradient(to bottom, transparent 0, black 22px);
+  mask-image:linear-gradient(to bottom, transparent 0, black 22px);
+}
 .thread-row{ display:flex; align-items:center; gap:12px; padding:9px 16px; position:relative; }
 .thread-row:active{ background:rgba(255,255,255,0.06); }
 .avatar{ width:52px;height:52px;border-radius:50%; display:flex;align-items:center;justify-content:center; color:#fff;font-size:19px;font-weight:600; flex-shrink:0; background:var(--bg-elevated-2); overflow:hidden; }
@@ -90,8 +121,8 @@ html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:
 .thread-top{ display:flex; align-items:baseline; justify-content:space-between; gap:8px;}
 .thread-name{ font-size:16.5px; font-weight:600; color:var(--label); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .thread-time{ font-size:15px; color:var(--label-3); flex-shrink:0; }
-.thread-preview{ font-size:14.5px; color:var(--label-2); display:flex; align-items:center; gap:5px; }
-.thread-preview .txt{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
+.thread-preview{ font-size:15px; color:var(--label-2); display:flex; align-items:flex-start; gap:5px; }
+.thread-preview .txt{ flex:1; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.32; }
 .unread-dot{ width:9px;height:9px;border-radius:50%;background:var(--blue); flex-shrink:0; }
 .chev{ opacity:0.3; flex-shrink:0; }
 .empty-state{ text-align:center; color:var(--label-3); font-size:15px; margin-top:60px; padding:0 30px; line-height:1.5; }
@@ -108,7 +139,10 @@ html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:
 .chat-pill-name{ font-size:15px; font-weight:600; color:var(--label); }
 .chat-sub{ font-size:12px; color:var(--label-3); text-align:center; margin-top:3px; }
 
-.chat-scroll{ flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:14px 12px 14px; display:flex; flex-direction:column; gap:3px; }
+.chat-scroll{ flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:14px 12px 14px; display:flex; flex-direction:column; gap:3px;
+  -webkit-mask-image:linear-gradient(to bottom, transparent 0, black 22px);
+  mask-image:linear-gradient(to bottom, transparent 0, black 22px);
+}
 .date-sep{ text-align:center; font-size:12.5px; color:var(--label-3); font-weight:500; margin:16px 0 10px; }
 .sys-line{ text-align:center; font-size:12px; color:var(--label-3); margin:2px 0 12px; display:flex; align-items:center; justify-content:center; gap:4px; }
 .sys-line.silenced{ color:#9b99ff; }
@@ -124,10 +158,30 @@ html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:
 
 .bubble{ padding:9px 14px; border-radius:19px; font-size:16.5px; line-height:1.3; word-wrap:break-word; white-space:pre-wrap; position:relative; animation:pop .22s cubic-bezier(.34,1.56,.64,1); }
 @keyframes pop{ from{ transform:scale(.7); opacity:0; } to{ transform:scale(1); opacity:1; } }
-.bubble.me.imsg{ background:linear-gradient(180deg,var(--blue),var(--blue-2)); color:#fff; border-bottom-right-radius:5px; }
-.bubble.me.sms{ background:linear-gradient(180deg,var(--green),var(--green-2)); color:#fff; border-bottom-right-radius:3px; }
-.bubble.them{ background:var(--gray-bubble); color:#fff; border-bottom-left-radius:5px; }
+.bubble.me.imsg{ background:linear-gradient(180deg,var(--blue),var(--blue-2)); color:#fff; }
+.bubble.me.sms{ background:linear-gradient(180deg,var(--green),var(--green-2)); color:#fff; }
+.bubble.them{ background:var(--gray-bubble); color:#fff; }
+
+/* Curved tail on the last bubble of each run, like real iMessage.
+   Built from two pieces: a rounded wedge in the bubble colour, then a
+   background-coloured cutout that carves the concave curve. */
+.bubble.tailed::before{
+  content:""; position:absolute; bottom:0; width:19px; height:19px;
+}
+.bubble.tailed::after{
+  content:""; position:absolute; bottom:0; width:11px; height:19px;
+  background:var(--bg);
+}
+.bubble.me.tailed::before{ right:-7px; border-bottom-left-radius:17px 15px; }
+.bubble.me.tailed::after{ right:-15px; border-bottom-left-radius:11px; }
+.bubble.me.imsg.tailed::before{ background:var(--blue-2); }
+.bubble.me.sms.tailed::before{ background:var(--green-2); }
+
+.bubble.them.tailed::before{ left:-7px; border-bottom-right-radius:17px 15px; background:var(--gray-bubble); }
+.bubble.them.tailed::after{ left:-15px; border-bottom-right-radius:11px; }
 .msg-row.grouped-next .bubble{ border-bottom-right-radius:19px; border-bottom-left-radius:19px; }
+.msg-row.grouped-next .bubble::after,
+.msg-row.grouped-next .bubble::before{ display:none; }
 
 .bubble.img{ padding:3px; overflow:hidden; }
 .bubble.img img{ display:block; max-width:230px; max-height:290px; border-radius:16px; }
@@ -157,7 +211,7 @@ html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:
 .tb-backdrop{ position:fixed; inset:0; z-index:49; background:rgba(0,0,0,0); }
 
 /* ---------- Input bar ---------- */
-.input-bar{ display:flex; align-items:flex-end; gap:8px; padding:8px 10px; padding-bottom:calc(8px + var(--safe-bottom)); background:var(--bg); flex-shrink:0; }
+.input-bar{ display:flex; align-items:flex-end; gap:8px; padding:8px 10px; padding-bottom:calc(4px + var(--safe-bottom)); background:var(--bg); flex-shrink:0; }
 .round-btn{ width:32px;height:32px;border-radius:50%;border:none; background:none; color:var(--label-3); display:flex;align-items:center;justify-content:center; flex-shrink:0; margin-bottom:2px; }
 .round-btn:active{ opacity:0.4; }
 .input-pill{ flex:1; background:var(--bg-elevated); border-radius:18px; min-height:36px; max-height:110px; display:flex; align-items:center; padding:0 6px 0 14px; }
@@ -194,8 +248,8 @@ html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:
       <div class="navbar-row">
         <button class="pill-btn" id="btn-edit">Edit</button>
         <div class="nav-title"></div>
-        <button class="icon-circle" id="btn-menu" aria-label="Options">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M3 12h18M3 18h18" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+        <button class="icon-circle" id="btn-filter" aria-label="Filter">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M6.5 12h11M9.5 17h5" stroke="#fff" stroke-width="2.1" stroke-linecap="round"/></svg>
         </button>
       </div>
       <div class="large-title">Messages</div>
@@ -207,14 +261,18 @@ html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:
         </div>
         <svg width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="#fff" stroke-opacity="0.3" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>
-      <div class="search-wrap">
-        <div class="search-box">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#a0a0a5" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="#a0a0a5" stroke-width="2" stroke-linecap="round"/></svg>
-          <input id="search-input" placeholder="Search" autocomplete="off">
-        </div>
-      </div>
     </div>
     <div class="list-scroll" id="thread-list"></div>
+    <div class="bottom-bar">
+      <div class="bottom-search">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#a0a0a5" stroke-width="2.2"/><path d="M21 21l-4.3-4.3" stroke="#a0a0a5" stroke-width="2.2" stroke-linecap="round"/></svg>
+        <input id="search-input" placeholder="Search" autocomplete="off">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="8.5" y="2" width="7" height="12" rx="3.5" fill="#e5e5ea"/><path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21" stroke="#e5e5ea" stroke-width="1.7" stroke-linecap="round"/></svg>
+      </div>
+      <button class="compose-btn" id="btn-compose" aria-label="New Message">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M20 12.5V18a2.5 2.5 0 01-2.5 2.5h-11A2.5 2.5 0 014 18V7a2.5 2.5 0 012.5-2.5H12" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/><path d="M16.8 3.9l3.3 3.3-7.4 7.4-4 .7.7-4 7.4-7.4z" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
   </div>
 
   <!-- ===================== CHAT SCREEN ===================== -->
@@ -224,7 +282,7 @@ html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:
         <button class="icon-circle" id="btn-back">
           <svg width="11" height="18" viewBox="0 0 11 18" fill="none"><path d="M9.5 1 1.5 9l8 8" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
-        <div class="nav-title">Messages</div>
+        <div class="nav-title"></div>
         <button class="icon-circle" id="btn-call">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 5.5C4 4.7 4.7 4 5.5 4h2.7c.6 0 1.1.4 1.3.9l1.1 3a1.4 1.4 0 01-.4 1.6L8.8 11a13 13 0 004.2 4.2l1.5-1.4a1.4 1.4 0 011.6-.3l3 1.1c.5.2.9.7.9 1.3v2.6c0 .8-.7 1.5-1.5 1.5C10.5 20 4 13.5 4 5.5z" fill="#fff"/></svg>
         </button>
@@ -527,7 +585,7 @@ function previewText(m){
   if(m.type==="link") return m.domain;
   if(m.image) return "🖼️ Image";
   const who = (m.from!=="me" && m.from!=="them") ? m.from+": " : "";
-  return who + (m.text||"").split("\n")[0];
+  return who + (m.text||"").replace(/\n/g, " ");
 }
 function threadNameByMsg(){ return ""; }
 
@@ -559,10 +617,10 @@ function renderThreadList(filter){
         <div class="thread-top">
           <div class="thread-name">${escapeHtml(contact.name)}</div>
           <div class="thread-time">${fmtListTime(lr.t)}</div>
+          ${th.unread?'<div class="unread-dot"></div>':'<svg class="chev" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="#8e8e93" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'}
         </div>
         <div class="thread-preview">
           <div class="txt">${escapeHtml(previewText(lr))}</div>
-          ${th.unread?'<div class="unread-dot"></div>':'<svg class="chev" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="#8e8e93" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'}
         </div>
       </div>`;
     row.addEventListener("click", ()=>openThread(th.id));
@@ -619,7 +677,12 @@ function renderChat(th){
       const sep = document.createElement("div");
       sep.className = "date-sep";
       sep.style.margin = isSys ? "10px 0 4px" : "16px 0 10px";
-      sep.textContent = fmtDateSep(m.t);
+      // First separator in a thread also shows the service label, like real Messages
+      if(idx===0){
+        sep.innerHTML = `<div style="font-weight:600;">${contact.isSMS ? "Text Message &middot; SMS" : "iMessage"}</div><div>${escapeHtml(fmtDateSep(m.t))}</div>`;
+      } else {
+        sep.textContent = fmtDateSep(m.t);
+      }
       chatScroll.appendChild(sep);
     }
     if(m.type==="location-start" || m.type==="location-stop"){
@@ -676,7 +739,7 @@ function buildMsgRow(th, m, idx){
     bubbleWrap.appendChild(bubble);
   } else {
     const bubble = document.createElement("div");
-    bubble.className = `bubble ${isMe?'me '+(contact.isSMS?'sms':'imsg'):'them'}`;
+    bubble.className = `bubble ${isMe?'me '+(contact.isSMS?'sms':'imsg'):'them'} ${grouped?'':'tailed'}`;
     bubble.textContent = m.text;
     bubbleWrap.appendChild(bubble);
   }
@@ -896,7 +959,7 @@ document.getElementById("btn-edit").addEventListener("click", ()=>{
 });
 
 const newContactList = document.getElementById("new-contact-list");
-document.getElementById("btn-menu").addEventListener("click", ()=>{
+document.getElementById("btn-compose").addEventListener("click", ()=>{
   document.getElementById("new-to-input").value = "";
   renderNewContactList("");
   showScreen("screen-new");
