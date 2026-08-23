@@ -11,13 +11,16 @@
 :root{
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-top: env(safe-area-inset-top, 0px);
+  --app-extend: 0px;   /* set by JS: the unreachable strip below the viewport */
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;overflow:hidden;background:#000;
   font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Arial,sans-serif;color:#fff;}
 
 /* Same container strategy as the real app */
-#app{position:fixed; inset:0; display:flex; flex-direction:column; overflow:hidden;
+#app{position:fixed; top:0; left:0; right:0; bottom:0;
+     height:calc(100% + var(--app-extend));
+     display:flex; flex-direction:column; overflow:hidden;
      background:#000; border:2px solid #00e5ff;}
 
 .head{padding-top:var(--safe-top); padding-left:14px; padding-right:14px; flex-shrink:0;}
@@ -64,7 +67,23 @@ h1{font-size:19px; margin:10px 0 4px;}
 <script>
 function px(n){ return Math.round(n * 10) / 10 + "px"; }
 
+/* THE FIX: iOS standalone reports a viewport shorter than the real screen.
+   Stretch #app into that unreachable strip. Standalone only — in Safari the
+   same difference is the browser toolbars and must not be overlapped. */
+function setAppExtend(){
+  const standalone = (window.navigator.standalone === true) ||
+                     window.matchMedia('(display-mode: standalone)').matches;
+  let extend = 0;
+  if(standalone){
+    const diff = (window.screen.height || 0) - window.innerHeight;
+    if(diff > 0 && diff < 200) extend = diff;
+  }
+  document.documentElement.style.setProperty('--app-extend', extend + 'px');
+  return extend;
+}
+
 function measure(){
+  const applied = setAppExtend();
   const app  = document.getElementById('app');
   const bar  = document.querySelector('.testbar');
   const appR = app.getBoundingClientRect();
@@ -88,6 +107,7 @@ function measure(){
   const appGap = vh - appR.bottom;      // container short of viewport?
   const barGap = appR.bottom - barR.bottom; // bar short of container?
 
+  const bottomReach = barR.bottom;
   const rows = [
     ["Opened from Home Screen?", standalone ? "YES (standalone)" : "NO (in Safari)", null],
     ["window.innerHeight",  px(vh), null],
@@ -95,6 +115,8 @@ function measure(){
     ["screen.height",       px(screenH), null],
     ["devicePixelRatio",    dpr, null],
     ["safe-area-inset-bottom", px(inset), null],
+    ["Dead zone (screen \u2212 viewport)", px(screenH - vh), null],
+    ["FIX APPLIED (--app-extend)", px(applied), applied > 0 ? "good" : null],
     ["App container bottom", px(appR.bottom), null],
     ["Pink bar bottom",      px(barR.bottom), null],
     ["GAP: viewport \u2212 container", px(appGap), appGap <= 1 ? "good" : "bad"],
@@ -105,35 +127,42 @@ function measure(){
     rows.map(([k,v,cls]) =>
       `<div class="row"><span class="k">${k}</span>
        <span class="v ${cls||''}">${v}</span></div>`).join('')
-    + buildVerdict(appGap, barGap, inset, standalone);
+    + buildVerdict(appGap, barGap, inset, standalone, applied, bottomReach, screenH);
 }
 
-function buildVerdict(appGap, barGap, inset, standalone){
+function buildVerdict(appGap, barGap, inset, standalone, applied, bottomReach, screenH){
   let html = '<div id="verdict">';
 
   if(!standalone){
-    html += "<b>Open this from your Home Screen first.</b><br>" +
-            "In Safari the toolbar covers the bottom, so the numbers here " +
-            "won't reflect the real problem. Add to Home Screen, then reopen this page.<br><br>";
+    html += "<b>Open this from your Home Screen.</b><br>" +
+            "In Safari the toolbar covers the bottom, so this test can't see the " +
+            "real problem. Add to Home Screen, then reopen from that icon.";
+    html += '</div>';
+    return html;
   }
 
-  if(appGap <= 1 && barGap <= 1){
-    html += "<b>No gap detected.</b> The bar already reaches the bottom of the " +
-            "viewport on this device. If you still SEE black space under the pink " +
-            "bar, that space is iOS's home-indicator area — set " +
-            "<b>--safe-bottom-scale: 0</b> in index.html.";
-  } else if(appGap > 1){
-    html += "<b>Cause: the app container is stopping short.</b><br>" +
-            "It ends " + px(appGap) + " above the bottom of the screen, so no amount " +
-            "of padding change will fix it. Use this in index.html:" +
-            "<span class='big'>--bar-drop: " + Math.round(appGap) + "px</span>";
+  const shortfall = Math.round(screenH - bottomReach);
+
+  if(applied > 0){
+    html += "<b>Dead zone detected and patched.</b><br>" +
+            "iOS gave this page a viewport " + px(applied) + " shorter than your " +
+            "screen. The app has been stretched into it.";
+    if(shortfall <= 2){
+      html += "<span class='big'>\u2713 FIXED</span>" +
+              "The pink bar now reaches the bottom of your screen. " +
+              "This same fix is already in index.html.";
+    } else {
+      html += "<span class='big' style='color:#ff453a'>" + shortfall + "px still short</span>" +
+              "Mostly closed, but a strip remains. Add this to index.html:<br>" +
+              "<b>--bar-drop: " + shortfall + "px</b>";
+    }
+  } else if(shortfall <= 2){
+    html += "<b>No gap.</b> The pink bar already reaches the bottom on this device.";
   } else {
-    html += "<b>Cause: padding inside the bar.</b><br>" +
-            "The container reaches the bottom, but the bar sits " + px(barGap) +
-            " above it. Reduce the padding:" +
-            "<span class='big'>--input-bar-gap: 0px</span>" +
-            "and set <b>--safe-bottom-scale: 0</b> " +
-            "(your device reports a " + px(inset) + " inset).";
+    html += "<b>Gap of " + shortfall + "px, but no dead zone detected.</b><br>" +
+            "The viewport matches the screen, so this is padding. Set " +
+            "<b>--input-bar-gap: 0px</b> and <b>--safe-bottom-scale: 0</b> " +
+            "(device reports a " + px(inset) + " inset).";
   }
 
   html += '</div>';
