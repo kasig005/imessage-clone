@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Layout Test</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Layout Test">
+<style>
+:root{
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;background:#000;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Arial,sans-serif;color:#fff;}
+
+/* Same container strategy as the real app */
+#app{position:fixed; inset:0; display:flex; flex-direction:column; overflow:hidden;
+     background:#000; border:2px solid #00e5ff;}
+
+.head{padding-top:var(--safe-top); padding-left:14px; padding-right:14px; flex-shrink:0;}
+h1{font-size:19px; margin:10px 0 4px;}
+.note{font-size:12.5px; color:#8e8e93; line-height:1.45; margin-bottom:8px;}
+
+.readout{flex:1; min-height:0; overflow-y:auto; padding:0 14px 10px; font-size:13.5px;}
+.row{display:flex; justify-content:space-between; gap:10px;
+     padding:7px 0; border-bottom:1px solid rgba(255,255,255,0.12);}
+.k{color:#8e8e93;}
+.v{font-variant-numeric:tabular-nums; font-weight:600;}
+.v.good{color:#31d454;}
+.v.bad{color:#ff453a;}
+
+#verdict{margin:10px 0 0; padding:12px; border-radius:10px;
+  background:#1c1c1e; font-size:14px; line-height:1.5;}
+#verdict b{color:#0a84ff;}
+.big{font-size:26px; font-weight:800; color:#31d454; display:block; margin:6px 0;}
+
+/* THE BAR UNDER TEST — magenta so you can see exactly where it ends */
+.testbar{
+  flex-shrink:0; background:#ff2d95;
+  padding:10px; padding-bottom:calc(10px + var(--safe-bottom));
+  text-align:center; font-weight:700; font-size:13px;
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="head">
+    <h1>Layout Diagnostic</h1>
+    <div class="note">
+      The <span style="color:#ff2d95;font-weight:700;">pink bar</span> below mimics your
+      message bar. The <span style="color:#00e5ff;font-weight:700;">blue outline</span> is the
+      app container. Look at the very bottom of your screen, then read the verdict.
+    </div>
+  </div>
+
+  <div class="readout" id="readout"></div>
+
+  <div class="testbar">PINK BAR &mdash; does this reach the bottom?</div>
+</div>
+
+<script>
+function px(n){ return Math.round(n * 10) / 10 + "px"; }
+
+function measure(){
+  const app  = document.getElementById('app');
+  const bar  = document.querySelector('.testbar');
+  const appR = app.getBoundingClientRect();
+  const barR = bar.getBoundingClientRect();
+
+  // Read the real safe-area inset this device reports
+  const probe = document.createElement('div');
+  probe.style.cssText =
+    'position:fixed;bottom:0;height:env(safe-area-inset-bottom,0px);width:0;';
+  document.body.appendChild(probe);
+  const inset = probe.getBoundingClientRect().height;
+  probe.remove();
+
+  const vh        = window.innerHeight;
+  const vvH       = window.visualViewport ? window.visualViewport.height : vh;
+  const screenH   = window.screen.height;
+  const dpr       = window.devicePixelRatio || 1;
+  const standalone= (window.navigator.standalone === true) ||
+                    window.matchMedia('(display-mode: standalone)').matches;
+
+  const appGap = vh - appR.bottom;      // container short of viewport?
+  const barGap = appR.bottom - barR.bottom; // bar short of container?
+
+  const rows = [
+    ["Opened from Home Screen?", standalone ? "YES (standalone)" : "NO (in Safari)", null],
+    ["window.innerHeight",  px(vh), null],
+    ["visualViewport.height", px(vvH), null],
+    ["screen.height",       px(screenH), null],
+    ["devicePixelRatio",    dpr, null],
+    ["safe-area-inset-bottom", px(inset), null],
+    ["App container bottom", px(appR.bottom), null],
+    ["Pink bar bottom",      px(barR.bottom), null],
+    ["GAP: viewport \u2212 container", px(appGap), appGap <= 1 ? "good" : "bad"],
+    ["GAP: container \u2212 bar",      px(barGap), barGap <= 1 ? "good" : "bad"],
+  ];
+
+  document.getElementById('readout').innerHTML =
+    rows.map(([k,v,cls]) =>
+      `<div class="row"><span class="k">${k}</span>
+       <span class="v ${cls||''}">${v}</span></div>`).join('')
+    + buildVerdict(appGap, barGap, inset, standalone);
+}
+
+function buildVerdict(appGap, barGap, inset, standalone){
+  let html = '<div id="verdict">';
+
+  if(!standalone){
+    html += "<b>Open this from your Home Screen first.</b><br>" +
+            "In Safari the toolbar covers the bottom, so the numbers here " +
+            "won't reflect the real problem. Add to Home Screen, then reopen this page.<br><br>";
+  }
+
+  if(appGap <= 1 && barGap <= 1){
+    html += "<b>No gap detected.</b> The bar already reaches the bottom of the " +
+            "viewport on this device. If you still SEE black space under the pink " +
+            "bar, that space is iOS's home-indicator area — set " +
+            "<b>--safe-bottom-scale: 0</b> in index.html.";
+  } else if(appGap > 1){
+    html += "<b>Cause: the app container is stopping short.</b><br>" +
+            "It ends " + px(appGap) + " above the bottom of the screen, so no amount " +
+            "of padding change will fix it. Use this in index.html:" +
+            "<span class='big'>--bar-drop: " + Math.round(appGap) + "px</span>";
+  } else {
+    html += "<b>Cause: padding inside the bar.</b><br>" +
+            "The container reaches the bottom, but the bar sits " + px(barGap) +
+            " above it. Reduce the padding:" +
+            "<span class='big'>--input-bar-gap: 0px</span>" +
+            "and set <b>--safe-bottom-scale: 0</b> " +
+            "(your device reports a " + px(inset) + " inset).";
+  }
+
+  html += '</div>';
+  return html;
+}
+
+measure();
+window.addEventListener('resize', measure);
+window.addEventListener('orientationchange', ()=>setTimeout(measure,300));
+if(window.visualViewport) window.visualViewport.addEventListener('resize', measure);
+</script>
+</body>
+</html>
