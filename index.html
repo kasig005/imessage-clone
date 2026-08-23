@@ -7,7 +7,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Messages">
 <meta name="theme-color" content="#000000">
 <style>
@@ -390,13 +390,13 @@ html,body{ height:100%; margin:0; overflow:hidden; background:#000; font-family:
 function setAppExtend(){
   const standalone = (window.navigator.standalone === true) ||
                      window.matchMedia('(display-mode: standalone)').matches;
-  let extend = 0;
-  if(standalone){
-    const diff = (window.screen.height || 0) - window.innerHeight;
-    // Only trust plausible values; ignore landscape/odd states.
-    if(diff > 0 && diff < 200) extend = diff;
-  }
-  document.documentElement.style.setProperty('--app-extend', extend + 'px');
+  // NOTE: we deliberately do NOT stretch past the viewport any more.
+  // screen.height is not the paintable area — anything drawn below
+  // window.innerHeight gets clipped by the webview and shows as black.
+  // The real fix is the status-bar-style meta tag (set to "black"),
+  // which makes the webview's height match its on-screen position.
+  document.documentElement.style.setProperty('--app-extend', '0px');
+  void standalone;
 }
 setAppExtend();
 window.addEventListener('resize', setAppExtend);
