@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Layout Test</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Layout Test">
 <style>
 :root{
@@ -73,12 +73,10 @@ function px(n){ return Math.round(n * 10) / 10 + "px"; }
 function setAppExtend(){
   const standalone = (window.navigator.standalone === true) ||
                      window.matchMedia('(display-mode: standalone)').matches;
-  let extend = 0;
-  if(standalone){
-    const diff = (window.screen.height || 0) - window.innerHeight;
-    if(diff > 0 && diff < 200) extend = diff;
-  }
+  // Do NOT stretch beyond the viewport: screen.height is not paintable.
+  const extend = 0;
   document.documentElement.style.setProperty('--app-extend', extend + 'px');
+  void standalone;
   return extend;
 }
 
@@ -135,34 +133,27 @@ function buildVerdict(appGap, barGap, inset, standalone, applied, bottomReach, s
 
   if(!standalone){
     html += "<b>Open this from your Home Screen.</b><br>" +
-            "In Safari the toolbar covers the bottom, so this test can't see the " +
-            "real problem. Add to Home Screen, then reopen from that icon.";
+            "Delete the old icon first, re-add from Safari, then launch it.";
     html += '</div>';
     return html;
   }
 
-  const shortfall = Math.round(screenH - bottomReach);
+  const deadzone = Math.round(screenH - window.innerHeight);
 
-  if(applied > 0){
-    html += "<b>Dead zone detected and patched.</b><br>" +
-            "iOS gave this page a viewport " + px(applied) + " shorter than your " +
-            "screen. The app has been stretched into it.";
-    if(shortfall <= 2){
-      html += "<span class='big'>\u2713 FIXED</span>" +
-              "The pink bar now reaches the bottom of your screen. " +
-              "This same fix is already in index.html.";
-    } else {
-      html += "<span class='big' style='color:#ff453a'>" + shortfall + "px still short</span>" +
-              "Mostly closed, but a strip remains. Add this to index.html:<br>" +
-              "<b>--bar-drop: " + shortfall + "px</b>";
-    }
-  } else if(shortfall <= 2){
-    html += "<b>No gap.</b> The pink bar already reaches the bottom on this device.";
+  if(deadzone <= 2){
+    html += "<b>Viewport now matches the screen.</b><br>" +
+            "innerHeight equals screen.height, so the page can paint the whole display.";
+    html += "<span class='big'>\u2713 FIXED</span>" +
+            "The pink bar should now sit flush at the very bottom. " +
+            "index.html has the same fix.";
   } else {
-    html += "<b>Gap of " + shortfall + "px, but no dead zone detected.</b><br>" +
-            "The viewport matches the screen, so this is padding. Set " +
-            "<b>--input-bar-gap: 0px</b> and <b>--safe-bottom-scale: 0</b> " +
-            "(device reports a " + px(inset) + " inset).";
+    html += "<span class='big' style='color:#ff453a'>" + deadzone + "px dead zone</span>" +
+            "iOS is still giving this page a viewport " + deadzone + "px shorter than " +
+            "the screen, so that strip cannot be painted at all.<br><br>" +
+            "<b>Did you delete and re-add the Home Screen icon?</b> " +
+            "iOS caches the status-bar setting when the icon is created, so an old " +
+            "icon keeps the old behaviour. Remove it, reload in Safari, then " +
+            "Add to Home Screen again.";
   }
 
   html += '</div>';
